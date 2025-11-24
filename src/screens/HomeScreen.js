@@ -1,28 +1,14 @@
 // src/screens/HomeScreen.js
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../context/AuthContext';
 
 const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
 
-// --- DYNAMIC SIZING CALCULATIONS ---
-const { width } = Dimensions.get('window');
+// CONFIGURATION
 const GRID_SIZE = 8; // 8x8 Grid
-const CONTAINER_PADDING = 20; 
-const GRID_BORDER_WIDTH = 2; 
-
-// 1. Calculate available width
-const AVAILABLE_WIDTH = width - (CONTAINER_PADDING * 2) - (GRID_BORDER_WIDTH * 2);
-
-// 2. Calculate cell size (rounded down to ensure it fits)
-const CELL_SIZE = Math.floor(AVAILABLE_WIDTH / GRID_SIZE);
-
-// 3. Recalculate the specific width of the grid container
-// This might be slightly smaller than screen width due to rounding, 
-// so we need to center this specific width.
-const FINAL_GRID_SIZE = CELL_SIZE * GRID_SIZE;
 
 export default function HomeScreen() {
   const { user, setUser } = useContext(AuthContext);
@@ -56,7 +42,7 @@ export default function HomeScreen() {
   };
 
   const generatePuzzle = (factText) => {
-    // Filter words: Length > 3 AND Length <= 8
+    // Filter words: Length > 3 AND Length <= GRID_SIZE
     const cleanText = factText.replace(/[^a-zA-Z ]/g, "");
     const words = cleanText.split(" ").filter(w => w.length > 3 && w.length <= GRID_SIZE);
     
@@ -129,20 +115,17 @@ export default function HomeScreen() {
       
       {/* 
          GRID CONTAINER 
-         1. We give it the EXACT calculated width (FINAL_GRID_SIZE).
-         2. We use alignSelf: 'center' to force it to the middle of the parent.
+         - Width 100% takes full available width (minus container padding)
+         - AspectRatio 1 keeps it square
+         - Content is centered
       */}
-      <View style={[styles.grid, { width: FINAL_GRID_SIZE, height: FINAL_GRID_SIZE }]}>
+      <View style={styles.gridContainer}>
         {grid.map((letter, index) => {
           const isSelected = selectedLetters.find(s => s.index === index);
           return (
             <TouchableOpacity 
               key={index} 
-              style={[
-                styles.cell, 
-                { width: CELL_SIZE, height: CELL_SIZE }, 
-                isSelected && styles.cellSelected
-              ]} 
+              style={[styles.cell, isSelected && styles.cellSelected]} 
               onPress={() => handleLetterPress(index, letter)}
             >
               <Text style={styles.cellText}>{letter}</Text>
@@ -167,9 +150,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    padding: CONTAINER_PADDING, 
+    padding: 20, 
     backgroundColor: '#FFF5E1', 
-    // These two lines ensure everything inside the main view is centered
     alignItems: 'center', 
     justifyContent: 'center' 
   },
@@ -180,19 +162,22 @@ const styles = StyleSheet.create({
   hintText: { fontSize: 16, color: '#333', fontStyle: 'italic', textAlign: 'center', lineHeight: 22 },
   clue: { fontSize: 14, color: '#FF4500', marginBottom: 15, fontWeight: 'bold' },
   
-  // Grid Styles
-  grid: { 
+  // New Grid Styles using Percentages
+  gridContainer: { 
+    width: '100%',             // Fill the screen width (minus padding)
+    aspectRatio: 1,            // Force a perfect square shape
     flexDirection: 'row', 
     flexWrap: 'wrap', 
     backgroundColor: '#fff', 
     borderColor: '#FF8C00', 
-    borderWidth: GRID_BORDER_WIDTH,
+    borderWidth: 2,
     borderRadius: 5,
-    overflow: 'hidden',
-    alignSelf: 'center' // Force the grid itself to be centered relative to its parent
+    overflow: 'hidden',        // Keep corners neat
   },
   
   cell: { 
+    width: '12.5%',            // 100% / 8 = 12.5% EXACTLY. Fits 8 items.
+    height: '12.5%',           // Same for height to be square
     justifyContent: 'center', 
     alignItems: 'center', 
     borderWidth: 0.5, 

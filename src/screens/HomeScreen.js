@@ -7,10 +7,21 @@ import { AuthContext } from '../context/AuthContext';
 
 const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
 
-// CONFIGURATION
+// --- DYNAMIC SIZING CALCULATIONS ---
+const { width } = Dimensions.get('window');
 const GRID_SIZE = 8; // 8x8 Grid
-const CELL_SIZE = 40; // Size of each block in pixels
-const GRID_WIDTH = GRID_SIZE * CELL_SIZE; // Total width of the board
+const CONTAINER_PADDING = 20; // The padding of the main screen
+const GRID_BORDER_WIDTH = 2; 
+
+// Calculate the available width for the grid
+// Screen Width - (Padding * 2) - (Border * 2)
+const AVAILABLE_WIDTH = width - (CONTAINER_PADDING * 2) - (GRID_BORDER_WIDTH * 2);
+
+// Calculate exact size per cell to fit 8 in a row
+const CELL_SIZE = Math.floor(AVAILABLE_WIDTH / GRID_SIZE);
+
+// Recalculate total grid size to be perfectly snug
+const FINAL_GRID_SIZE = CELL_SIZE * GRID_SIZE;
 
 export default function HomeScreen() {
   const { user, setUser } = useContext(AuthContext);
@@ -38,26 +49,24 @@ export default function HomeScreen() {
       setFact(factText);
       generatePuzzle(factText);
     } catch (error) {
-      Alert.alert('Error', 'Could not fetch fact. Check internet connection.');
+      Alert.alert('Error', 'Could not fetch fact.');
       setLoading(false);
     }
   };
 
   const generatePuzzle = (factText) => {
-    // 1. Clean text and Filter words
-    // We only keep words that are greater than 3 letters AND less than or equal to GRID_SIZE (8)
+    // 1. Filter words: Length > 3 AND Length <= 8
     const cleanText = factText.replace(/[^a-zA-Z ]/g, "");
     const words = cleanText.split(" ").filter(w => w.length > 3 && w.length <= GRID_SIZE);
     
-    // Fallback if no suitable words found
     const word = words.length > 0 ? words[Math.floor(Math.random() * words.length)].toUpperCase() : "FACTS";
     setTargetWord(word);
 
-    // 2. Create the Hint
+    // 2. Create Hint
     const maskedFact = factText.replace(new RegExp(word, 'gi'), "_______");
     setHint(maskedFact);
 
-    // 3. Create an 8x8 grid
+    // 3. Create Grid
     let newGrid = [];
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     
@@ -65,10 +74,9 @@ export default function HomeScreen() {
       newGrid.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
     }
 
-    // 4. Place the target word horizontally
-    // Ensure we don't go out of bounds
+    // 4. Place Word
     const startRow = Math.floor(Math.random() * GRID_SIZE);
-    const maxCol = GRID_SIZE - word.length; // This ensures the word fits
+    const maxCol = GRID_SIZE - word.length; 
     const startCol = Math.floor(Math.random() * (maxCol + 1)); 
     const startIndex = startRow * GRID_SIZE + startCol;
 
@@ -81,21 +89,18 @@ export default function HomeScreen() {
   };
 
   const handleLetterPress = (index, letter) => {
-    // Prevent selecting same tile twice
     if (selectedLetters.find(s => s.index === index)) return;
 
     const newSelection = [...selectedLetters, { index, letter }];
     setSelectedLetters(newSelection);
 
-    // Sort selection by index to ensure reading left-to-right (optional, but helps logic)
     const formedWord = newSelection.map(s => s.letter).join('');
     
     if (formedWord === targetWord) {
-      Alert.alert("PUZZLE SOLVED!", `The fact was:\n\n"${fact}"`, [
+      Alert.alert("SUCCESS!", `The fact was:\n\n"${fact}"`, [
         { text: "Next Puzzle", onPress: saveFactAndReset }
       ]);
     } else if (formedWord.length >= targetWord.length) {
-      // Wrong word, reset selection automatically
       setTimeout(() => setSelectedLetters([]), 500);
     }
   };
@@ -121,14 +126,19 @@ export default function HomeScreen() {
         {showFirstLetter ? ` | Starts with: ${targetWord[0]}` : ''}
       </Text>
       
-      {/* Dynamic Width based on Grid Size */}
-      <View style={[styles.grid, { width: GRID_WIDTH, height: GRID_WIDTH }]}>
+      {/* GRID CONTAINER */}
+      {/* We set explicit Width and Height based on calculations so border fits perfectly */}
+      <View style={[styles.grid, { width: FINAL_GRID_SIZE, height: FINAL_GRID_SIZE }]}>
         {grid.map((letter, index) => {
           const isSelected = selectedLetters.find(s => s.index === index);
           return (
             <TouchableOpacity 
               key={index} 
-              style={[styles.cell, isSelected && styles.cellSelected]} 
+              style={[
+                styles.cell, 
+                { width: CELL_SIZE, height: CELL_SIZE }, // Dynamic Size
+                isSelected && styles.cellSelected
+              ]} 
               onPress={() => handleLetterPress(index, letter)}
             >
               <Text style={styles.cellText}>{letter}</Text>
@@ -139,7 +149,7 @@ export default function HomeScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.helperBtn} onPress={() => setShowFirstLetter(true)}>
-          <Text style={styles.helperText}>Need a Clue?</Text>
+          <Text style={styles.helperText}>Hint</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.skipBtn} onPress={fetchFact}>
@@ -151,25 +161,44 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, alignItems: 'center', backgroundColor: '#FFF5E1', justifyContent: 'center' },
+  container: { 
+    flex: 1, 
+    padding: CONTAINER_PADDING, 
+    alignItems: 'center', 
+    backgroundColor: '#FFF5E1', 
+    justifyContent: 'center' 
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
   hintContainer: { marginBottom: 15, padding: 15, backgroundColor: '#FFF', borderRadius: 10, width: '100%', elevation: 3 },
   hintLabel: { fontSize: 12, color: '#FF8C00', fontWeight: 'bold', marginBottom: 5, textTransform: 'uppercase' },
   hintText: { fontSize: 16, color: '#333', fontStyle: 'italic', textAlign: 'center', lineHeight: 22 },
-  
   clue: { fontSize: 14, color: '#FF4500', marginBottom: 15, fontWeight: 'bold' },
   
-  // Grid is now calculated based on constants
-  grid: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: '#fff', borderRadius: 5, elevation: 5, borderWidth: 2, borderColor: '#FF8C00' },
+  // Grid Styles
+  grid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    backgroundColor: '#fff', 
+    borderColor: '#FF8C00', 
+    borderWidth: GRID_BORDER_WIDTH,
+    borderRadius: 5,
+    overflow: 'hidden' // Ensures nothing spills out
+  },
   
-  cell: { width: CELL_SIZE, height: CELL_SIZE, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#ccc' },
+  cell: { 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    borderWidth: 0.5, 
+    borderColor: '#eee' 
+  },
+  
   cellSelected: { backgroundColor: '#FFFF00' },
   cellText: { fontSize: 18, fontWeight: 'bold', color: '#333' },
   
   footer: { marginTop: 20, flexDirection: 'row', gap: 20 },
-  helperBtn: { paddingVertical: 10, paddingHorizontal: 20, backgroundColor: '#4682B4', borderRadius: 20 },
+  helperBtn: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: '#4682B4', borderRadius: 20 },
   helperText: { color: '#fff', fontWeight: 'bold' },
-  skipBtn: { paddingVertical: 10, paddingHorizontal: 20, backgroundColor: '#FF6347', borderRadius: 20 },
+  skipBtn: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: '#FF6347', borderRadius: 20 },
   skipText: { color: '#fff', fontWeight: 'bold' }
 });

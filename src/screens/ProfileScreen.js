@@ -1,36 +1,33 @@
 // src/screens/ProfileScreen.js
-import React, { useContext } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 
 export default function ProfileScreen() {
   const { user, logout } = useContext(AuthContext);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  const handleLogout = () => {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to sign out?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Log Out", 
-          onPress: () => logout(),
-          style: 'destructive' 
-        }
-      ]
-    );
+  // 1. Instead of an Alert, we just show the Modal
+  const handleLogoutPress = () => {
+    setModalVisible(true);
+  };
+
+  // 2. The actual logout action
+  const confirmLogout = () => {
+    setModalVisible(false);
+    logout();
   };
 
   return (
     <View style={styles.container}>
-      {/* Header Section with Logout */}
+      {/* Header Section */}
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.greeting}>Hello,</Text>
           <Text style={styles.username}>{user?.username}</Text>
         </View>
         
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutPress}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </View>
@@ -56,6 +53,40 @@ export default function ProfileScreen() {
           <Text style={styles.emptyText}>You haven't solved any puzzles yet!</Text>
         }
       />
+
+      {/* --- CUSTOM LOGOUT MODAL --- */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Leaving So Soon?</Text>
+            <Text style={styles.modalMessage}>Are you sure you want to sign out of Fact Puzzle?</Text>
+            
+            <View style={styles.modalButtons}>
+              {/* Cancel Button */}
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.cancelBtn]} 
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.cancelText}>Stay</Text>
+              </TouchableOpacity>
+
+              {/* Confirm Button */}
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.confirmBtn]} 
+                onPress={confirmLogout}
+              >
+                <Text style={styles.confirmText}>Log Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {/* --------------------------- */}
     </View>
   );
 }
@@ -90,5 +121,65 @@ const styles = StyleSheet.create({
   factNumber: { fontSize: 12, color: '#999', marginBottom: 5, fontWeight: 'bold' },
   factText: { fontSize: 15, color: '#333', lineHeight: 22 },
   
-  emptyText: { textAlign: 'center', color: '#888', marginTop: 50, fontStyle: 'italic' }
+  emptyText: { textAlign: 'center', color: '#888', marginTop: 50, fontStyle: 'italic' },
+
+  // --- MODAL STYLES ---
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)', // Semi-transparent dark background
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 25,
+    alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FF8C00',
+    marginBottom: 10
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#555',
+    textAlign: 'center',
+    marginBottom: 25
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    gap: 10
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center'
+  },
+  cancelBtn: {
+    backgroundColor: '#E0E0E0',
+  },
+  confirmBtn: {
+    backgroundColor: '#FF4500',
+  },
+  cancelText: {
+    color: '#333',
+    fontWeight: 'bold',
+    fontSize: 16
+  },
+  confirmText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16
+  }
 });

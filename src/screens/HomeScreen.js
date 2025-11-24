@@ -1,6 +1,6 @@
 // src/screens/HomeScreen.js
-import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, PanResponder } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../context/AuthContext';
@@ -8,7 +8,7 @@ import { AuthContext } from '../context/AuthContext';
 const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
 
 // CONFIGURATION
-const GRID_SIZE = 8; // 8x8 Grid
+const GRID_SIZE = 8; 
 
 export default function HomeScreen() {
   const { user, setUser } = useContext(AuthContext);
@@ -20,9 +20,20 @@ export default function HomeScreen() {
   const [selectedLetters, setSelectedLetters] = useState([]);
   const [showFirstLetter, setShowFirstLetter] = useState(false);
 
+  // --- REFS (The Fix for Stale State) ---
+  // We use Refs to store data so PanResponder can access the LATEST values instantly
+  const gridRef = useRef([]); 
+  const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0, pageX: 0, pageY: 0 });
+  const gridViewRef = useRef(null);
+
   useEffect(() => {
     fetchFact();
   }, []);
+
+  // Sync Ref with State whenever grid changes
+  useEffect(() => {
+    gridRef.current = grid;
+  }, [grid]);
 
   const fetchFact = async () => {
     setLoading(true);
@@ -71,37 +82,75 @@ export default function HomeScreen() {
     setLoading(false);
   };
 
-  // --- UPDATED LOGIC HERE ---
-  const handleLetterPress = (index, letter) => {
-    // 1. Check if the user tapped a letter that is ALREADY selected
-    const existingIndex = selectedLetters.findIndex(s => s.index === index);
+  // --- GESTURE LOGIC ---
 
-    if (existingIndex !== -1) {
-      // DESELECT LOGIC:
-      // If you tap a letter you already picked, we remove that letter
-      // AND remove any letters you picked after it.
-      // Example: You picked [A, B, C]. You tap 'B'. result -> [A]. 
-      const newSelection = selectedLetters.slice(0, existingIndex);
-      setSelectedLetters(newSelection);
-      return; 
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      
+      onPanResponderGrant: (evt) => {
+        handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, true); 
+      },
+      onPanResponderMove: (evt) => {
+        handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, false);
+      },
+    })
+  ).current;
+
+  const handlePan = (pageX, pageY, isStart) => {
+    // FIX: Read from the REF, not the state. 
+    // The Ref always has the current layout dimensions.
+    const layout = layoutRef.current;
+    
+    if (!layout.width) return; // If we haven't measured yet, stop.
+
+    const relativeX = pageX - layout.pageX;
+    const relativeY = pageY - layout.pageY;
+
+    if (relativeX < 0 || relativeY < 0 || relativeX > layout.width || relativeY > layout.height) {
+      return;
     }
 
-    // 2. Standard Selection Logic (Add letter)
-    const newSelection = [...selectedLetters, { index, letter }];
-    setSelectedLetters(newSelection);
+    const cellSize = layout.width / GRID_SIZE;
+    const col = Math.floor(relativeX / cellSize);
+    const row = Math.floor(relativeY / cellSize);
+    const index = row * GRID_SIZE + col;
 
-    const formedWord = newSelection.map(s => s.letter).join('');
+    if (index >= 0 && index < GRID_SIZE * GRID_SIZE) {
+      updateSelection(index, isStart);
+    }
+  };
+
+  const updateSelection = (index, isStart) => {
+    setSelectedLetters(prev => {
+      // FIX: Read grid from Ref to ensure we get the letter
+      const currentGrid = gridRef.current; 
+      const letter = currentGrid[index];
+
+      if (isStart) {
+        return [{ index, letter }];
+      }
+      
+      const alreadySelected = prev.find(item => item.index === index);
+      if (alreadySelected) return prev;
+
+      return [...prev, { index, letter }];
+    });
+  };
+
+  // Win Condition Check
+  useEffect(() => {
+    if (selectedLetters.length === 0) return;
+
+    const formedWord = selectedLetters.map(s => s.letter).join('');
     
     if (formedWord === targetWord) {
       Alert.alert("SUCCESS!", `The fact was:\n\n"${fact}"`, [
         { text: "Next Puzzle", onPress: saveFactAndReset }
       ]);
-    } else if (formedWord.length >= targetWord.length) {
-      // If wrong and too long, reset automatically after short delay
-      setTimeout(() => setSelectedLetters([]), 500);
-    }
-  };
-  // ---------------------------
+    } 
+  }, [selectedLetters]);
 
   const saveFactAndReset = async () => {
     const updatedUser = { ...user, solved: [...(user.solved || []), fact] };
@@ -124,17 +173,26 @@ export default function HomeScreen() {
         {showFirstLetter ? ` | Starts with: ${targetWord[0]}` : ''}
       </Text>
       
-      <View style={styles.gridContainer}>
+      <View 
+        style={styles.gridContainer}
+        ref={gridViewRef}
+        {...panResponder.panHandlers} 
+        onLayout={() => {
+          // Measure the view and store it in the REF
+          gridViewRef.current.measure((x, y, width, height, pageX, pageY) => {
+            layoutRef.current = { x, y, width, height, pageX, pageY };
+          });
+        }}
+      >
         {grid.map((letter, index) => {
           const isSelected = selectedLetters.find(s => s.index === index);
           return (
-            <TouchableOpacity 
+            <View 
               key={index} 
               style={[styles.cell, isSelected && styles.cellSelected]} 
-              onPress={() => handleLetterPress(index, letter)}
             >
               <Text style={styles.cellText}>{letter}</Text>
-            </TouchableOpacity>
+            </View>
           );
         })}
       </View>

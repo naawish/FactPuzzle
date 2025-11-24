@@ -12,8 +12,10 @@ export default function HomeScreen() {
   const [fact, setFact] = useState('');
   const [loading, setLoading] = useState(true);
   const [targetWord, setTargetWord] = useState('');
+  const [hint, setHint] = useState(''); // New State for the blanked-out sentence
   const [grid, setGrid] = useState([]);
   const [selectedLetters, setSelectedLetters] = useState([]);
+  const [showFirstLetter, setShowFirstLetter] = useState(false); // Helper state
 
   useEffect(() => {
     fetchFact();
@@ -22,6 +24,7 @@ export default function HomeScreen() {
   const fetchFact = async () => {
     setLoading(true);
     setSelectedLetters([]);
+    setShowFirstLetter(false);
     try {
       const response = await axios.get('https://api.api-ninjas.com/v1/facts', {
         headers: { 'X-Api-Key': API_KEY }
@@ -30,19 +33,27 @@ export default function HomeScreen() {
       setFact(factText);
       generatePuzzle(factText);
     } catch (error) {
-      Alert.alert('Error', 'Could not fetch fact');
+      Alert.alert('Error', 'Could not fetch fact. Check internet connection.');
     } finally {
       setLoading(false);
     }
   };
 
   const generatePuzzle = (factText) => {
-    // 1. Pick a random word from the fact longer than 4 letters
-    const words = factText.replace(/[^a-zA-Z ]/g, "").split(" ").filter(w => w.length > 4);
+    // 1. Clean text to find suitable words (remove punctuation)
+    const cleanText = factText.replace(/[^a-zA-Z ]/g, "");
+    const words = cleanText.split(" ").filter(w => w.length > 4);
+    
+    // Default to "FACTS" if no long words found
     const word = words.length > 0 ? words[Math.floor(Math.random() * words.length)].toUpperCase() : "FACTS";
     setTargetWord(word);
 
-    // 2. Create a 6x6 grid filled with random letters
+    // 2. Create the Hint: Replace the chosen word in the original text with underscores
+    // We use Regex to replace it case-insensitively
+    const maskedFact = factText.replace(new RegExp(word, 'gi'), "_______");
+    setHint(maskedFact);
+
+    // 3. Create a 6x6 grid
     const gridSize = 6;
     let newGrid = [];
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -51,9 +62,11 @@ export default function HomeScreen() {
       newGrid.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
     }
 
-    // 3. Place the target word horizontally (simplified for newbie)
+    // 4. Place the target word horizontally
+    // Ensure it fits in the row
     const startRow = Math.floor(Math.random() * gridSize);
-    const startCol = Math.floor(Math.random() * (gridSize - word.length));
+    const maxCol = gridSize - word.length;
+    const startCol = Math.floor(Math.random() * (maxCol + 1)); 
     const startIndex = startRow * gridSize + startCol;
 
     for (let i = 0; i < word.length; i++) {
@@ -67,15 +80,14 @@ export default function HomeScreen() {
     const newSelection = [...selectedLetters, { index, letter }];
     setSelectedLetters(newSelection);
 
-    // Check if the formed word matches target
     const formedWord = newSelection.map(s => s.letter).join('');
     
     if (formedWord === targetWord) {
       Alert.alert("PUZZLE SOLVED!", `The fact was:\n\n"${fact}"`, [
-        { text: "Awesome!", onPress: saveFactAndReset }
+        { text: "Next Puzzle", onPress: saveFactAndReset }
       ]);
     } else if (formedWord.length >= targetWord.length) {
-      // Wrong word, reset selection
+      // Wrong word, reset selection after short delay
       setTimeout(() => setSelectedLetters([]), 500);
     }
   };
@@ -91,9 +103,18 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.hint}>Find the hidden word related to the fact!</Text>
-      <Text style={styles.clue}>Length: {targetWord.length} letters</Text>
+      {/* The Hint Section */}
+      <View style={styles.hintContainer}>
+         <Text style={styles.hintLabel}>Complete the Fact:</Text>
+         <Text style={styles.hintText}>"{hint}"</Text>
+      </View>
+
+      <Text style={styles.clue}>
+        Word Length: {targetWord.length} letters 
+        {showFirstLetter ? ` | Starts with: ${targetWord[0]}` : ''}
+      </Text>
       
+      {/* The Grid */}
       <View style={styles.grid}>
         {grid.map((letter, index) => {
           const isSelected = selectedLetters.find(s => s.index === index);
@@ -109,9 +130,16 @@ export default function HomeScreen() {
         })}
       </View>
 
-      <TouchableOpacity style={styles.skipBtn} onPress={fetchFact}>
-        <Text style={styles.skipText}>Skip Puzzle</Text>
-      </TouchableOpacity>
+      {/* Action Buttons */}
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.helperBtn} onPress={() => setShowFirstLetter(true)}>
+          <Text style={styles.helperText}>Need a Clue?</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.skipBtn} onPress={fetchFact}>
+          <Text style={styles.skipText}>Skip Puzzle</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -119,12 +147,21 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, alignItems: 'center', backgroundColor: '#FFF5E1', justifyContent: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  hint: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 10, textAlign: 'center' },
-  clue: { fontSize: 16, color: '#FF4500', marginBottom: 20 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', width: 300, height: 300, backgroundColor: '#fff', borderRadius: 10, elevation: 5 },
+  
+  hintContainer: { marginBottom: 20, padding: 15, backgroundColor: '#FFF', borderRadius: 10, width: '100%', elevation: 3 },
+  hintLabel: { fontSize: 14, color: '#FF8C00', fontWeight: 'bold', marginBottom: 5, textTransform: 'uppercase' },
+  hintText: { fontSize: 18, color: '#333', fontStyle: 'italic', textAlign: 'center', lineHeight: 26 },
+  
+  clue: { fontSize: 16, color: '#FF4500', marginBottom: 20, fontWeight: 'bold' },
+  
+  grid: { flexDirection: 'row', flexWrap: 'wrap', width: 300, height: 300, backgroundColor: '#fff', borderRadius: 10, elevation: 5, borderWidth: 2, borderColor: '#FF8C00' },
   cell: { width: 50, height: 50, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#eee' },
   cellSelected: { backgroundColor: '#FFFF00' },
   cellText: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-  skipBtn: { marginTop: 30, padding: 10, backgroundColor: '#ddd', borderRadius: 20 },
-  skipText: { color: '#555' }
+  
+  footer: { marginTop: 30, flexDirection: 'row', gap: 20 },
+  helperBtn: { padding: 12, backgroundColor: '#4682B4', borderRadius: 20 },
+  helperText: { color: '#fff', fontWeight: 'bold' },
+  skipBtn: { padding: 12, backgroundColor: '#FF6347', borderRadius: 20 },
+  skipText: { color: '#fff', fontWeight: 'bold' }
 });

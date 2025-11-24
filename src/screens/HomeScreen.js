@@ -7,7 +7,6 @@ import { AuthContext } from '../context/AuthContext';
 
 const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
 
-// CONFIGURATION
 const GRID_SIZE = 8; 
 
 export default function HomeScreen() {
@@ -20,9 +19,11 @@ export default function HomeScreen() {
   const [selectedLetters, setSelectedLetters] = useState([]);
   const [showFirstLetter, setShowFirstLetter] = useState(false);
 
-  // --- REFS (The Fix for Stale State) ---
-  // We use Refs to store data so PanResponder can access the LATEST values instantly
+  // --- REFS (Crucial for Gesture Handling) ---
+  // We use Refs to bypass "Stale State" inside PanResponder
   const gridRef = useRef([]); 
+  const targetWordRef = useRef(''); // Holds the answer
+  const selectionRef = useRef([]);  // Holds current drag selection
   const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0, pageX: 0, pageY: 0 });
   const gridViewRef = useRef(null);
 
@@ -30,14 +31,19 @@ export default function HomeScreen() {
     fetchFact();
   }, []);
 
-  // Sync Ref with State whenever grid changes
+  // Sync Refs whenever State changes
   useEffect(() => {
     gridRef.current = grid;
   }, [grid]);
 
+  useEffect(() => {
+    targetWordRef.current = targetWord;
+  }, [targetWord]);
+
   const fetchFact = async () => {
     setLoading(true);
     setSelectedLetters([]);
+    selectionRef.current = []; // Clear ref too
     setShowFirstLetter(false);
     try {
       const response = await axios.get('https://api.api-ninjas.com/v1/facts', {
@@ -89,21 +95,34 @@ export default function HomeScreen() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       
+      // Start Drag
       onPanResponderGrant: (evt) => {
         handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, true); 
       },
+      
+      // Dragging
       onPanResponderMove: (evt) => {
         handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, false);
       },
+
+      // Release Finger (THE FIX)
+      onPanResponderRelease: () => {
+        const currentWord = selectionRef.current.map(s => s.letter).join('');
+        const correctWord = targetWordRef.current;
+
+        // If the word is NOT correct, clear the selection immediately
+        if (currentWord !== correctWord) {
+          setSelectedLetters([]);
+          selectionRef.current = [];
+        }
+        // If it IS correct, the useEffect below handles the win
+      }
     })
   ).current;
 
   const handlePan = (pageX, pageY, isStart) => {
-    // FIX: Read from the REF, not the state. 
-    // The Ref always has the current layout dimensions.
     const layout = layoutRef.current;
-    
-    if (!layout.width) return; // If we haven't measured yet, stop.
+    if (!layout.width) return; 
 
     const relativeX = pageX - layout.pageX;
     const relativeY = pageY - layout.pageY;
@@ -123,34 +142,39 @@ export default function HomeScreen() {
   };
 
   const updateSelection = (index, isStart) => {
-    setSelectedLetters(prev => {
-      // FIX: Read grid from Ref to ensure we get the letter
-      const currentGrid = gridRef.current; 
-      const letter = currentGrid[index];
+    const currentGrid = gridRef.current; 
+    const letter = currentGrid[index];
 
-      if (isStart) {
-        return [{ index, letter }];
-      }
-      
-      const alreadySelected = prev.find(item => item.index === index);
-      if (alreadySelected) return prev;
+    // If starting a new gesture, reset everything
+    if (isStart) {
+      const newSel = [{ index, letter }];
+      selectionRef.current = newSel; // Update Ref
+      setSelectedLetters(newSel);    // Update State (for UI)
+      return;
+    }
 
-      return [...prev, { index, letter }];
-    });
+    // Determine if we need to add this letter (prevent duplicates)
+    const prev = selectionRef.current;
+    const alreadySelected = prev.find(item => item.index === index);
+    
+    if (!alreadySelected) {
+      const newSel = [...prev, { index, letter }];
+      selectionRef.current = newSel; // Update Ref
+      setSelectedLetters(newSel);    // Update State (for UI)
+    }
   };
 
-  // Win Condition Check
+  // Win Condition Check (Runs every time selection state updates)
   useEffect(() => {
-    if (selectedLetters.length === 0) return;
-
     const formedWord = selectedLetters.map(s => s.letter).join('');
     
-    if (formedWord === targetWord) {
+    // We check against targetWord directly here since useEffect has access to state
+    if (formedWord && formedWord === targetWord) {
       Alert.alert("SUCCESS!", `The fact was:\n\n"${fact}"`, [
         { text: "Next Puzzle", onPress: saveFactAndReset }
       ]);
     } 
-  }, [selectedLetters]);
+  }, [selectedLetters, targetWord, fact]); // Added dependencies to be safe
 
   const saveFactAndReset = async () => {
     const updatedUser = { ...user, solved: [...(user.solved || []), fact] };
@@ -178,7 +202,6 @@ export default function HomeScreen() {
         ref={gridViewRef}
         {...panResponder.panHandlers} 
         onLayout={() => {
-          // Measure the view and store it in the REF
           gridViewRef.current.measure((x, y, width, height, pageX, pageY) => {
             layoutRef.current = { x, y, width, height, pageX, pageY };
           });

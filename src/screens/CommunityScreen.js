@@ -1,16 +1,14 @@
 // src/screens/CommunityScreen.js
 import React, { useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ImageBackground } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 
 export default function CommunityScreen() {
   const { user } = useContext(AuthContext);
 
-  // 1. Get current user stats
   const userScore = user?.solved ? user.solved.length : 0;
   const userName = user?.username || "You";
 
-  // 2. Define Bot Data (The competition)
   const bots = [
     { id: '1', name: 'PuzzleMaster', score: 42 },
     { id: '2', name: 'TriviaKing', score: 30 },
@@ -18,8 +16,6 @@ export default function CommunityScreen() {
     { id: '4', name: 'NewbieExplorer', score: 5 },
   ];
 
-  // 3. Combine User + Bots and Sort by Score (High to Low)
-  // useMemo ensures we don't recalculate this unless the score changes
   const leaderboard = useMemo(() => {
     const allPlayers = [
       ...bots,
@@ -29,28 +25,29 @@ export default function CommunityScreen() {
     return allPlayers.sort((a, b) => b.score - a.score);
   }, [userScore, userName]);
 
-  // 4. Find the User's Rank (Index + 1)
   const userRank = leaderboard.findIndex(p => p.isUser) + 1;
 
   return (
-    <View style={styles.container}>
+    <ImageBackground 
+      source={require('../../assets/background.png')} 
+      style={styles.container}
+      resizeMode="cover"
+    >
       <Text style={styles.header}>Leaderboard</Text>
       
-      {/* Global Stats Section */}
       <View style={styles.statsBox}>
         <Text style={styles.statsTitle}>Your Global Rank</Text>
         <Text style={styles.statsValue}>#{userRank}</Text>
         <Text style={styles.statsSub}>Score: {userScore}</Text>
       </View>
 
-      {/* Dynamic List */}
       <FlatList
         data={leaderboard}
         keyExtractor={item => item.id}
         renderItem={({ item, index }) => (
           <View style={[
             styles.rankRow, 
-            item.isUser && styles.myRow // Apply special style if it's YOU
+            item.isUser && styles.myRow 
           ]}>
             <Text style={[styles.rank, item.isUser && styles.myText]}>
               {index + 1}. {item.name}
@@ -61,13 +58,27 @@ export default function CommunityScreen() {
           </View>
         )}
       />
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#FFF0F5' },
-  header: { fontSize: 28, fontWeight: 'bold', color: '#C71585', marginBottom: 20, textAlign: 'center' },
+  container: { 
+    flex: 1, 
+    padding: 20, 
+    // backgroundColor: '#FFF0F5', <--- REMOVED
+  },
+  header: { 
+    fontSize: 28, 
+    fontWeight: 'bold', 
+    color: '#C71585', 
+    marginBottom: 20, 
+    textAlign: 'center',
+    // Added shadow for readability against background
+    textShadowColor: 'rgba(255, 255, 255, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10
+  },
   
   statsBox: { 
     backgroundColor: '#C71585', 
@@ -92,7 +103,6 @@ const styles = StyleSheet.create({
     elevation: 2 
   },
   
-  // Special styles for the user's own row
   myRow: { 
     backgroundColor: '#FFD700', 
     borderColor: '#FFA500', 

@@ -1,12 +1,11 @@
 // src/screens/HomeScreen.js
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, PanResponder } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, PanResponder, ImageBackground } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../context/AuthContext';
 
 const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
-
 const GRID_SIZE = 8; 
 
 export default function HomeScreen() {
@@ -19,14 +18,12 @@ export default function HomeScreen() {
   const [selectedLetters, setSelectedLetters] = useState([]);
   const [showFirstLetter, setShowFirstLetter] = useState(false);
 
-  // --- REFS ---
+  // Refs
   const gridRef = useRef([]); 
   const targetWordRef = useRef(''); 
   const selectionRef = useRef([]);  
   const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0, pageX: 0, pageY: 0 });
   const gridViewRef = useRef(null);
-  
-  // NEW: Timer Ref to handle the delay safely
   const clearTimerRef = useRef(null);
 
   useEffect(() => {
@@ -62,7 +59,6 @@ export default function HomeScreen() {
   const generatePuzzle = (factText) => {
     const cleanText = factText.replace(/[^a-zA-Z ]/g, "");
     const words = cleanText.split(" ").filter(w => w.length > 3 && w.length <= GRID_SIZE);
-    
     const word = words.length > 0 ? words[Math.floor(Math.random() * words.length)].toUpperCase() : "FACTS";
     setTargetWord(word);
 
@@ -71,7 +67,6 @@ export default function HomeScreen() {
 
     let newGrid = [];
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    
     for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
       newGrid.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
     }
@@ -84,43 +79,33 @@ export default function HomeScreen() {
     for (let i = 0; i < word.length; i++) {
       newGrid[startIndex + i] = word[i];
     }
-    
     setGrid(newGrid);
     setLoading(false);
   };
 
-  // --- GESTURE LOGIC ---
-
+  // Gesture Logic
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      
       onPanResponderGrant: (evt) => {
-        // SAFETY: If a clear timer is running (from previous wrong guess), stop it!
-        // This prevents the old wrong selection from clearing your NEW selection.
         if (clearTimerRef.current) {
           clearTimeout(clearTimerRef.current);
           clearTimerRef.current = null;
         }
-
         handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, true); 
       },
-      
       onPanResponderMove: (evt) => {
         handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, false);
       },
-
       onPanResponderRelease: () => {
         const currentWord = selectionRef.current.map(s => s.letter).join('');
         const correctWord = targetWordRef.current;
-
         if (currentWord !== correctWord) {
-          // ADD DELAY: Wait 500ms before clearing so user sees what they picked
           clearTimerRef.current = setTimeout(() => {
             setSelectedLetters([]);
             selectionRef.current = [];
-          }, 300); 
+          }, 500); 
         }
       }
     })
@@ -129,13 +114,9 @@ export default function HomeScreen() {
   const handlePan = (pageX, pageY, isStart) => {
     const layout = layoutRef.current;
     if (!layout.width) return; 
-
     const relativeX = pageX - layout.pageX;
     const relativeY = pageY - layout.pageY;
-
-    if (relativeX < 0 || relativeY < 0 || relativeX > layout.width || relativeY > layout.height) {
-      return;
-    }
+    if (relativeX < 0 || relativeY < 0 || relativeX > layout.width || relativeY > layout.height) return;
 
     const cellSize = layout.width / GRID_SIZE;
     const col = Math.floor(relativeX / cellSize);
@@ -150,17 +131,14 @@ export default function HomeScreen() {
   const updateSelection = (index, isStart) => {
     const currentGrid = gridRef.current; 
     const letter = currentGrid[index];
-
     if (isStart) {
       const newSel = [{ index, letter }];
       selectionRef.current = newSel; 
       setSelectedLetters(newSel);    
       return;
     }
-
     const prev = selectionRef.current;
     const alreadySelected = prev.find(item => item.index === index);
-    
     if (!alreadySelected) {
       const newSel = [...prev, { index, letter }];
       selectionRef.current = newSel; 
@@ -168,10 +146,9 @@ export default function HomeScreen() {
     }
   };
 
-  // Win Condition Check
+  // Win Check
   useEffect(() => {
     const formedWord = selectedLetters.map(s => s.letter).join('');
-    
     if (formedWord && formedWord === targetWord) {
       Alert.alert("SUCCESS!", `The fact was:\n\n"${fact}"`, [
         { text: "Next Puzzle", onPress: saveFactAndReset }
@@ -189,7 +166,12 @@ export default function HomeScreen() {
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#FF8C00"/></View>;
 
   return (
-    <View style={styles.container}>
+    // REPLACE VIEW WITH IMAGE BACKGROUND
+    <ImageBackground 
+      source={require('../../assets/background.png')} 
+      style={styles.container}
+      resizeMode="cover"
+    >
       <View style={styles.hintContainer}>
          <Text style={styles.hintLabel}>Complete the Fact:</Text>
          <Text style={styles.hintText}>"{hint}"</Text>
@@ -232,7 +214,7 @@ export default function HomeScreen() {
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -240,7 +222,7 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     padding: 20, 
-    backgroundColor: '#FFF5E1', 
+    // backgroundColor: '#FFF5E1', <--- REMOVED
     alignItems: 'center', 
     justifyContent: 'center' 
   },
@@ -249,7 +231,7 @@ const styles = StyleSheet.create({
   hintContainer: { marginBottom: 15, padding: 15, backgroundColor: '#FFF', borderRadius: 10, width: '100%', elevation: 3 },
   hintLabel: { fontSize: 12, color: '#FF8C00', fontWeight: 'bold', marginBottom: 5, textTransform: 'uppercase' },
   hintText: { fontSize: 16, color: '#333', fontStyle: 'italic', textAlign: 'center', lineHeight: 22 },
-  clue: { fontSize: 14, color: '#FF4500', marginBottom: 15, fontWeight: 'bold' },
+  clue: { fontSize: 14, color: '#FF4500', marginBottom: 15, fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.7)', padding: 5, borderRadius: 5 }, // Added background for readability
   
   gridContainer: { 
     width: '100%',             

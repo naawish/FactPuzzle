@@ -120,7 +120,7 @@ export default function HomeScreen() {
           clearTimerRef.current = setTimeout(() => {
             setSelectedLetters([]);
             selectionRef.current = [];
-          }, 500); 
+          }, 300); 
         }
       }
     })

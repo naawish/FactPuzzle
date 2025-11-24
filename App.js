@@ -11,6 +11,7 @@ import SignupScreen from './src/screens/SignupScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import CommunityScreen from './src/screens/CommunityScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -39,12 +40,26 @@ function Navigation() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
+          // Auth Stack
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
         ) : (
-          <Stack.Screen name="Main" component={AppTabs} />
+          // App Stack
+          <>
+            <Stack.Screen name="Main" component={AppTabs} />
+            <Stack.Screen 
+              name="Settings" 
+              component={SettingsScreen} 
+              options={{ 
+                headerShown: true, 
+                title: 'Account Settings',
+                headerStyle: { backgroundColor: '#FF8C00' },
+                headerTintColor: '#fff'
+              }} 
+            />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

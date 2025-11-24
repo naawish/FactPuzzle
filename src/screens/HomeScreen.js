@@ -10,17 +10,18 @@ const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
 // --- DYNAMIC SIZING CALCULATIONS ---
 const { width } = Dimensions.get('window');
 const GRID_SIZE = 8; // 8x8 Grid
-const CONTAINER_PADDING = 20; // The padding of the main screen
+const CONTAINER_PADDING = 20; 
 const GRID_BORDER_WIDTH = 2; 
 
-// Calculate the available width for the grid
-// Screen Width - (Padding * 2) - (Border * 2)
+// 1. Calculate available width
 const AVAILABLE_WIDTH = width - (CONTAINER_PADDING * 2) - (GRID_BORDER_WIDTH * 2);
 
-// Calculate exact size per cell to fit 8 in a row
+// 2. Calculate cell size (rounded down to ensure it fits)
 const CELL_SIZE = Math.floor(AVAILABLE_WIDTH / GRID_SIZE);
 
-// Recalculate total grid size to be perfectly snug
+// 3. Recalculate the specific width of the grid container
+// This might be slightly smaller than screen width due to rounding, 
+// so we need to center this specific width.
 const FINAL_GRID_SIZE = CELL_SIZE * GRID_SIZE;
 
 export default function HomeScreen() {
@@ -55,18 +56,18 @@ export default function HomeScreen() {
   };
 
   const generatePuzzle = (factText) => {
-    // 1. Filter words: Length > 3 AND Length <= 8
+    // Filter words: Length > 3 AND Length <= 8
     const cleanText = factText.replace(/[^a-zA-Z ]/g, "");
     const words = cleanText.split(" ").filter(w => w.length > 3 && w.length <= GRID_SIZE);
     
     const word = words.length > 0 ? words[Math.floor(Math.random() * words.length)].toUpperCase() : "FACTS";
     setTargetWord(word);
 
-    // 2. Create Hint
+    // Create Hint
     const maskedFact = factText.replace(new RegExp(word, 'gi'), "_______");
     setHint(maskedFact);
 
-    // 3. Create Grid
+    // Create Grid
     let newGrid = [];
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     
@@ -74,7 +75,7 @@ export default function HomeScreen() {
       newGrid.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
     }
 
-    // 4. Place Word
+    // Place Word
     const startRow = Math.floor(Math.random() * GRID_SIZE);
     const maxCol = GRID_SIZE - word.length; 
     const startCol = Math.floor(Math.random() * (maxCol + 1)); 
@@ -126,8 +127,11 @@ export default function HomeScreen() {
         {showFirstLetter ? ` | Starts with: ${targetWord[0]}` : ''}
       </Text>
       
-      {/* GRID CONTAINER */}
-      {/* We set explicit Width and Height based on calculations so border fits perfectly */}
+      {/* 
+         GRID CONTAINER 
+         1. We give it the EXACT calculated width (FINAL_GRID_SIZE).
+         2. We use alignSelf: 'center' to force it to the middle of the parent.
+      */}
       <View style={[styles.grid, { width: FINAL_GRID_SIZE, height: FINAL_GRID_SIZE }]}>
         {grid.map((letter, index) => {
           const isSelected = selectedLetters.find(s => s.index === index);
@@ -136,7 +140,7 @@ export default function HomeScreen() {
               key={index} 
               style={[
                 styles.cell, 
-                { width: CELL_SIZE, height: CELL_SIZE }, // Dynamic Size
+                { width: CELL_SIZE, height: CELL_SIZE }, 
                 isSelected && styles.cellSelected
               ]} 
               onPress={() => handleLetterPress(index, letter)}
@@ -164,8 +168,9 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     padding: CONTAINER_PADDING, 
-    alignItems: 'center', 
     backgroundColor: '#FFF5E1', 
+    // These two lines ensure everything inside the main view is centered
+    alignItems: 'center', 
     justifyContent: 'center' 
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -183,7 +188,8 @@ const styles = StyleSheet.create({
     borderColor: '#FF8C00', 
     borderWidth: GRID_BORDER_WIDTH,
     borderRadius: 5,
-    overflow: 'hidden' // Ensures nothing spills out
+    overflow: 'hidden',
+    alignSelf: 'center' // Force the grid itself to be centered relative to its parent
   },
   
   cell: { 

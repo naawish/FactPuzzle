@@ -19,19 +19,20 @@ export default function HomeScreen() {
   const [selectedLetters, setSelectedLetters] = useState([]);
   const [showFirstLetter, setShowFirstLetter] = useState(false);
 
-  // --- REFS (Crucial for Gesture Handling) ---
-  // We use Refs to bypass "Stale State" inside PanResponder
+  // --- REFS ---
   const gridRef = useRef([]); 
-  const targetWordRef = useRef(''); // Holds the answer
-  const selectionRef = useRef([]);  // Holds current drag selection
+  const targetWordRef = useRef(''); 
+  const selectionRef = useRef([]);  
   const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0, pageX: 0, pageY: 0 });
   const gridViewRef = useRef(null);
+  
+  // NEW: Timer Ref to handle the delay safely
+  const clearTimerRef = useRef(null);
 
   useEffect(() => {
     fetchFact();
   }, []);
 
-  // Sync Refs whenever State changes
   useEffect(() => {
     gridRef.current = grid;
   }, [grid]);
@@ -43,7 +44,7 @@ export default function HomeScreen() {
   const fetchFact = async () => {
     setLoading(true);
     setSelectedLetters([]);
-    selectionRef.current = []; // Clear ref too
+    selectionRef.current = []; 
     setShowFirstLetter(false);
     try {
       const response = await axios.get('https://api.api-ninjas.com/v1/facts', {
@@ -95,27 +96,32 @@ export default function HomeScreen() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       
-      // Start Drag
       onPanResponderGrant: (evt) => {
+        // SAFETY: If a clear timer is running (from previous wrong guess), stop it!
+        // This prevents the old wrong selection from clearing your NEW selection.
+        if (clearTimerRef.current) {
+          clearTimeout(clearTimerRef.current);
+          clearTimerRef.current = null;
+        }
+
         handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, true); 
       },
       
-      // Dragging
       onPanResponderMove: (evt) => {
         handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, false);
       },
 
-      // Release Finger (THE FIX)
       onPanResponderRelease: () => {
         const currentWord = selectionRef.current.map(s => s.letter).join('');
         const correctWord = targetWordRef.current;
 
-        // If the word is NOT correct, clear the selection immediately
         if (currentWord !== correctWord) {
-          setSelectedLetters([]);
-          selectionRef.current = [];
+          // ADD DELAY: Wait 500ms before clearing so user sees what they picked
+          clearTimerRef.current = setTimeout(() => {
+            setSelectedLetters([]);
+            selectionRef.current = [];
+          }, 500); 
         }
-        // If it IS correct, the useEffect below handles the win
       }
     })
   ).current;
@@ -145,36 +151,33 @@ export default function HomeScreen() {
     const currentGrid = gridRef.current; 
     const letter = currentGrid[index];
 
-    // If starting a new gesture, reset everything
     if (isStart) {
       const newSel = [{ index, letter }];
-      selectionRef.current = newSel; // Update Ref
-      setSelectedLetters(newSel);    // Update State (for UI)
+      selectionRef.current = newSel; 
+      setSelectedLetters(newSel);    
       return;
     }
 
-    // Determine if we need to add this letter (prevent duplicates)
     const prev = selectionRef.current;
     const alreadySelected = prev.find(item => item.index === index);
     
     if (!alreadySelected) {
       const newSel = [...prev, { index, letter }];
-      selectionRef.current = newSel; // Update Ref
-      setSelectedLetters(newSel);    // Update State (for UI)
+      selectionRef.current = newSel; 
+      setSelectedLetters(newSel);    
     }
   };
 
-  // Win Condition Check (Runs every time selection state updates)
+  // Win Condition Check
   useEffect(() => {
     const formedWord = selectedLetters.map(s => s.letter).join('');
     
-    // We check against targetWord directly here since useEffect has access to state
     if (formedWord && formedWord === targetWord) {
       Alert.alert("SUCCESS!", `The fact was:\n\n"${fact}"`, [
         { text: "Next Puzzle", onPress: saveFactAndReset }
       ]);
     } 
-  }, [selectedLetters, targetWord, fact]); // Added dependencies to be safe
+  }, [selectedLetters, targetWord, fact]); 
 
   const saveFactAndReset = async () => {
     const updatedUser = { ...user, solved: [...(user.solved || []), fact] };

@@ -42,18 +42,15 @@ export default function HomeScreen() {
   };
 
   const generatePuzzle = (factText) => {
-    // Filter words: Length > 3 AND Length <= GRID_SIZE
     const cleanText = factText.replace(/[^a-zA-Z ]/g, "");
     const words = cleanText.split(" ").filter(w => w.length > 3 && w.length <= GRID_SIZE);
     
     const word = words.length > 0 ? words[Math.floor(Math.random() * words.length)].toUpperCase() : "FACTS";
     setTargetWord(word);
 
-    // Create Hint
     const maskedFact = factText.replace(new RegExp(word, 'gi'), "_______");
     setHint(maskedFact);
 
-    // Create Grid
     let newGrid = [];
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     
@@ -61,7 +58,6 @@ export default function HomeScreen() {
       newGrid.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
     }
 
-    // Place Word
     const startRow = Math.floor(Math.random() * GRID_SIZE);
     const maxCol = GRID_SIZE - word.length; 
     const startCol = Math.floor(Math.random() * (maxCol + 1)); 
@@ -75,9 +71,22 @@ export default function HomeScreen() {
     setLoading(false);
   };
 
+  // --- UPDATED LOGIC HERE ---
   const handleLetterPress = (index, letter) => {
-    if (selectedLetters.find(s => s.index === index)) return;
+    // 1. Check if the user tapped a letter that is ALREADY selected
+    const existingIndex = selectedLetters.findIndex(s => s.index === index);
 
+    if (existingIndex !== -1) {
+      // DESELECT LOGIC:
+      // If you tap a letter you already picked, we remove that letter
+      // AND remove any letters you picked after it.
+      // Example: You picked [A, B, C]. You tap 'B'. result -> [A]. 
+      const newSelection = selectedLetters.slice(0, existingIndex);
+      setSelectedLetters(newSelection);
+      return; 
+    }
+
+    // 2. Standard Selection Logic (Add letter)
     const newSelection = [...selectedLetters, { index, letter }];
     setSelectedLetters(newSelection);
 
@@ -88,9 +97,11 @@ export default function HomeScreen() {
         { text: "Next Puzzle", onPress: saveFactAndReset }
       ]);
     } else if (formedWord.length >= targetWord.length) {
+      // If wrong and too long, reset automatically after short delay
       setTimeout(() => setSelectedLetters([]), 500);
     }
   };
+  // ---------------------------
 
   const saveFactAndReset = async () => {
     const updatedUser = { ...user, solved: [...(user.solved || []), fact] };
@@ -113,12 +124,6 @@ export default function HomeScreen() {
         {showFirstLetter ? ` | Starts with: ${targetWord[0]}` : ''}
       </Text>
       
-      {/* 
-         GRID CONTAINER 
-         - Width 100% takes full available width (minus container padding)
-         - AspectRatio 1 keeps it square
-         - Content is centered
-      */}
       <View style={styles.gridContainer}>
         {grid.map((letter, index) => {
           const isSelected = selectedLetters.find(s => s.index === index);
@@ -162,22 +167,21 @@ const styles = StyleSheet.create({
   hintText: { fontSize: 16, color: '#333', fontStyle: 'italic', textAlign: 'center', lineHeight: 22 },
   clue: { fontSize: 14, color: '#FF4500', marginBottom: 15, fontWeight: 'bold' },
   
-  // New Grid Styles using Percentages
   gridContainer: { 
-    width: '100%',             // Fill the screen width (minus padding)
-    aspectRatio: 1,            // Force a perfect square shape
+    width: '100%',             
+    aspectRatio: 1,            
     flexDirection: 'row', 
     flexWrap: 'wrap', 
     backgroundColor: '#fff', 
     borderColor: '#FF8C00', 
     borderWidth: 2,
     borderRadius: 5,
-    overflow: 'hidden',        // Keep corners neat
+    overflow: 'hidden',        
   },
   
   cell: { 
-    width: '12.5%',            // 100% / 8 = 12.5% EXACTLY. Fits 8 items.
-    height: '12.5%',           // Same for height to be square
+    width: '12.5%',            
+    height: '12.5%',           
     justifyContent: 'center', 
     alignItems: 'center', 
     borderWidth: 0.5, 

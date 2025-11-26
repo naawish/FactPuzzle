@@ -5,13 +5,11 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
 
-const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
+// YOUR API KEYS
+const FACTS_API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR'; 
 const GRID_SIZE = 8; 
 
 export default function HomeScreen() {
-  // ---------------------------------------------------------
-  // 1. PUT IT HERE (Inside the function, at the top)
-  // ---------------------------------------------------------
   const { user, saveSolvedPuzzle } = useContext(AuthContext); 
   const { theme } = useContext(ThemeContext); 
 
@@ -21,9 +19,13 @@ export default function HomeScreen() {
   const [hint, setHint] = useState('');
   const [grid, setGrid] = useState([]);
   const [selectedLetters, setSelectedLetters] = useState([]);
-  const [showFirstLetter, setShowFirstLetter] = useState(false);
   
-  // State for the Success Popup
+  // Hint States
+  const [hintLevel, setHintLevel] = useState(0); // 0=None, 1=Letter, 2=Def
+  const [definition, setDefinition] = useState('');
+  const [defLoading, setDefLoading] = useState(false);
+
+  // Modal
   const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   // Refs
@@ -52,16 +54,69 @@ export default function HomeScreen() {
     setSuccessModalVisible(false); 
     setSelectedLetters([]);
     selectionRef.current = []; 
-    setShowFirstLetter(false);
+    
+    // Reset Hints
+    setHintLevel(0);
+    setDefinition('');
+    
     try {
       const response = await axios.get('https://api.api-ninjas.com/v1/facts', {
-        headers: { 'X-Api-Key': API_KEY }
+        headers: { 'X-Api-Key': FACTS_API_KEY }
       });
       const factText = response.data[0].fact;
       setFact(factText);
       generatePuzzle(factText);
     } catch (error) {
       setLoading(false);
+      Alert.alert("Error", "Could not load puzzle.");
+    }
+  };
+
+  // --- FIXED HINT LOGIC ---
+  const handleHintPress = async () => {
+    if (hintLevel === 0) {
+      // Level 1: Show First Letter
+      setHintLevel(1);
+    } else if (hintLevel === 1) {
+      // Level 2: Fetch Definition
+      setDefLoading(true);
+      try {
+        console.log("Fetching definition for:", targetWord); // Debug log
+
+        const res = await axios.get(`https://api.api-ninjas.com/v1/dictionary?word=${targetWord}`, {
+          headers: { 'X-Api-Key': FACTS_API_KEY }
+        });
+        
+        if (res.data.definition) {
+          let rawDef = res.data.definition;
+          console.log("Raw API Response:", rawDef); // Debug log
+
+          // 1. Remove the target word (Spoiler protection)
+          let cleanDef = rawDef.replace(new RegExp(targetWord, 'gi'), "___");
+
+          // 2. Remove numbered lists (e.g., "1. ") if present at start
+          cleanDef = cleanDef.replace(/^\d+\.\s*/, "");
+
+          // 3. Clean up whitespace
+          cleanDef = cleanDef.trim();
+
+          // 4. Truncate if too long (keep it card-sized)
+          if (cleanDef.length > 120) {
+            cleanDef = cleanDef.substring(0, 120) + "...";
+          }
+          
+          setDefinition(cleanDef);
+        } else {
+          setDefinition("Definition unavailable for this word.");
+        }
+        setHintLevel(2);
+      } catch (error) {
+        console.error("Dictionary Error:", error);
+        setDefinition("Could not fetch definition.");
+        setHintLevel(2);
+      } finally {
+        setDefLoading(false);
+      }
     }
   };
 
@@ -191,7 +246,6 @@ export default function HomeScreen() {
     } 
   };
 
-  // Win Check
   useEffect(() => {
     const formedWord = selectedLetters.map(s => s.letter).join('');
     if (formedWord && formedWord === targetWord) {
@@ -200,14 +254,8 @@ export default function HomeScreen() {
     } 
   }, [selectedLetters, targetWord]); 
 
-  // ---------------------------------------------------------
-  // 2. UPDATED SAVE FUNCTION (Uses the Firebase function)
-  // ---------------------------------------------------------
   const saveFact = async () => {
-    // Check if already solved in user's profile
     if (user?.solved?.includes(fact)) return;
-    
-    // Save to Cloud Database
     await saveSolvedPuzzle(fact);
   };
 
@@ -228,6 +276,25 @@ export default function HomeScreen() {
   const modalTextStyle = { color: theme.text };
   const primaryBtnStyle = { backgroundColor: theme.primary, borderBottomColor: theme.shadow };
 
+  const getHintBtnColor = () => {
+    if (hintLevel === 0) return '#4682B4'; 
+    if (hintLevel === 1) return '#8A2BE2'; 
+    return '#555'; 
+  };
+  
+  const getHintBtnText = () => {
+    if (defLoading) return "...";
+    if (hintLevel === 0) return "HINT (1/2)";
+    if (hintLevel === 1) return "HINT (2/2)";
+    return "MAX HINTS";
+  };
+
+  const hintBtnStyle = { 
+    backgroundColor: getHintBtnColor(), 
+    borderColor: getHintBtnColor(), 
+    borderBottomColor: hintLevel === 2 ? '#333' : '#2F5D85' 
+  };
+
   return (
     <ImageBackground 
       source={require('../../assets/background.png')} 
@@ -243,9 +310,19 @@ export default function HomeScreen() {
       <View style={[styles.clueContainer, { borderColor: theme.danger }]}>
         <Text style={[styles.clueText, { color: theme.danger }]}>
           Length: {targetWord.length} 
-          {showFirstLetter ? ` | Starts: ${targetWord[0]}` : ''}
+          {hintLevel >= 1 ? ` | Starts: ${targetWord[0]}` : ''}
         </Text>
       </View>
+
+      {/* DEFINITION CARD */}
+      {hintLevel >= 2 && (
+        <View style={[styles.defContainer, { backgroundColor: theme.card, borderColor: theme.primary }]}>
+          <Text style={[styles.defLabel, { color: theme.primary }]}>DEFINITION:</Text>
+          <Text style={[styles.defText, { color: theme.text }]}>
+            {definition}
+          </Text>
+        </View>
+      )}
       
       <View 
         style={[styles.gridContainer, gridStyle]}
@@ -278,8 +355,12 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={[styles.gameBtn, styles.hintBtn]} onPress={() => setShowFirstLetter(true)}>
-          <Text style={styles.btnText}>HINT</Text>
+        <TouchableOpacity 
+          style={[styles.gameBtn, hintBtnStyle]} 
+          onPress={handleHintPress}
+          disabled={hintLevel >= 2}
+        >
+          <Text style={styles.btnText}>{getHintBtnText()}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.gameBtn, skipBtnStyle]} onPress={fetchFact}>
@@ -287,7 +368,6 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* SUCCESS MODAL */}
       <Modal 
         visible={successModalVisible} 
         transparent={true} 
@@ -322,18 +402,26 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
   card: { 
-    marginBottom: 15, padding: 20, borderRadius: 20, width: '100%', 
+    marginBottom: 10, padding: 15, borderRadius: 20, width: '100%', 
     borderWidth: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, 
     shadowOpacity: 0.2, shadowRadius: 5, elevation: 5
   },
   hintLabel: { fontSize: 12, fontWeight: 'bold', marginBottom: 5, textTransform: 'uppercase' },
-  hintText: { fontSize: 18, fontStyle: 'italic', textAlign: 'center', lineHeight: 24, fontWeight: '500' },
+  hintText: { fontSize: 16, fontStyle: 'italic', textAlign: 'center', lineHeight: 22, fontWeight: '500' },
   
   clueContainer: { 
     backgroundColor: 'rgba(255,255,255,0.9)', paddingVertical: 5, paddingHorizontal: 15, 
-    borderRadius: 15, marginBottom: 15, borderWidth: 2
+    borderRadius: 15, marginBottom: 10, borderWidth: 2
   },
-  clueText: { fontSize: 16, fontWeight: 'bold' },
+  clueText: { fontSize: 14, fontWeight: 'bold' },
+
+  defContainer: {
+    width: '100%', padding: 10, borderRadius: 15, borderWidth: 2,
+    marginBottom: 10, alignItems: 'center',
+    minHeight: 60, justifyContent: 'center'
+  },
+  defLabel: { fontSize: 10, fontWeight: '900', marginBottom: 2 },
+  defText: { fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
   
   gridContainer: { 
     width: '100%', aspectRatio: 1, flexDirection: 'row', flexWrap: 'wrap', 
@@ -343,26 +431,16 @@ const styles = StyleSheet.create({
   cell: { width: '12.5%', height: '12.5%', justifyContent: 'center', alignItems: 'center', borderWidth: 0.5 },
   cellText: { fontSize: 20, fontWeight: 'bold', color: '#333' },
   
-  footer: { marginTop: 25, flexDirection: 'row', gap: 20 },
-  gameBtn: { paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, alignItems: 'center', borderBottomWidth: 5 },
-  hintBtn: { backgroundColor: '#4682B4', borderColor: '#4682B4', borderBottomColor: '#2F5D85' },
-  btnText: { color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: 1 },
+  footer: { marginTop: 20, flexDirection: 'row', gap: 20 },
+  gameBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 25, alignItems: 'center', borderBottomWidth: 5, minWidth: 120 },
+  btnText: { color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 1 },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  modalCard: { 
-    width: '85%', borderRadius: 30, padding: 25, alignItems: 'center', 
-    borderWidth: 4, borderBottomWidth: 8, elevation: 20 
-  },
+  modalCard: { width: '85%', borderRadius: 30, padding: 25, alignItems: 'center', borderWidth: 4, borderBottomWidth: 8, elevation: 20 },
   modalTitle: { fontSize: 28, fontWeight: '900', marginBottom: 15, letterSpacing: 1, textAlign: 'center' },
-  
   modalContent: { marginBottom: 25, alignItems: 'center' },
   factLabel: { fontSize: 12, fontWeight: 'bold', marginBottom: 5, letterSpacing: 1 },
   fullFactText: { fontSize: 18, textAlign: 'center', lineHeight: 26, fontWeight: '600' },
-
-  nextBtn: { 
-    paddingVertical: 15, paddingHorizontal: 40, borderRadius: 50, 
-    borderBottomWidth: 6, elevation: 5 
-  },
+  nextBtn: { paddingVertical: 15, paddingHorizontal: 40, borderRadius: 50, borderBottomWidth: 6, elevation: 5 },
   nextBtnText: { color: '#FFF', fontWeight: '900', fontSize: 20, letterSpacing: 1 }
 });

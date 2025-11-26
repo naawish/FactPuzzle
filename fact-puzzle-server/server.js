@@ -84,16 +84,27 @@ app.post('/update-profile', (req, res) => {
   }
 });
 
-// 4. SAVE PUZZLE
+// 4. SAVE PUZZLE (Updated with Timestamp)
 app.post('/save-puzzle', (req, res) => {
   const { id, fact } = req.body;
   const db = readDB();
 
   const userIndex = db.users.findIndex(u => u.id === id);
   if (userIndex > -1) {
-    // Add fact if not already there
-    if (!db.users[userIndex].solved.includes(fact)) {
-      db.users[userIndex].solved.push(fact);
+    // Check if fact text already exists (handle both old strings and new objects)
+    const alreadyExists = db.users[userIndex].solved.some(item => {
+      if (typeof item === 'string') return item === fact;
+      return item.text === fact;
+    });
+
+    if (!alreadyExists) {
+      // SAVE AS OBJECT WITH DATE
+      const newEntry = {
+        text: fact,
+        date: new Date().toISOString() // Saves "2023-11-26T10:00:00.000Z"
+      };
+      
+      db.users[userIndex].solved.unshift(newEntry); // Add to TOP of list
       writeDB(db);
     }
     res.json(db.users[userIndex]);

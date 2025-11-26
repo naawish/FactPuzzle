@@ -10,7 +10,9 @@ import {
   ImageBackground, 
   Image, 
   KeyboardAvoidingView, 
-  Platform 
+  Platform,
+  TouchableWithoutFeedback, // <--- IMPORT THIS
+  Keyboard                  // <--- IMPORT THIS
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
@@ -20,7 +22,6 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   
   const { login } = useContext(AuthContext);
-  // Get isDark to switch images
   const { theme, isDark } = useContext(ThemeContext); 
 
   const handleLogin = async () => {
@@ -56,70 +57,71 @@ export default function LoginScreen({ navigation }) {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.4 : 1 }} 
       resizeMode="cover"
     >
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
-      >
+      {/* 1. Wrap everything in TouchableWithoutFeedback to detect outside clicks */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         
-        {/* --- BRANDING --- */}
-        <View style={styles.brandingContainer}>
-          {/* Logo Removed as requested */}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.container}
+        >
           
-          {/* Dynamic Title Image */}
-          <Image 
-            source={
-              isDark 
-                ? require('../../assets/Title-Dark.png') 
-                : require('../../assets/Title-Light.png')
-            } 
-            style={styles.titleImage}
-          />
-        </View>
-
-        {/* --- GAME CARD --- */}
-        <View style={[styles.card, cardStyle]}>
-          
-          <Text style={[styles.cardHeader, { color: theme.primary }]}>Welcome Back!</Text>
-
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, labelStyle]}>EMAIL</Text>
-            <TextInput 
-              placeholder="player@example.com" 
-              style={[styles.input, inputStyle]} 
-              value={email} 
-              onChangeText={setEmail} 
-              autoCapitalize="none"
-              placeholderTextColor={theme.subText}
+          {/* --- BRANDING --- */}
+          <View style={styles.brandingContainer}>
+            <Image 
+              source={
+                isDark 
+                  ? require('../../assets/Title-Dark.png') 
+                  : require('../../assets/Title-Light.png')
+              } 
+              style={styles.titleImage}
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={[styles.inputLabel, labelStyle]}>PASSWORD</Text>
-            <TextInput 
-              placeholder="••••••••" 
-              style={[styles.input, inputStyle]} 
-              value={password} 
-              onChangeText={setPassword} 
-              secureTextEntry 
-              placeholderTextColor={theme.subText}
-            />
+          {/* --- GAME CARD --- */}
+          <View style={[styles.card, cardStyle]}>
+            
+            <Text style={[styles.cardHeader, { color: theme.primary }]}>Welcome Back!</Text>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, labelStyle]}>EMAIL</Text>
+              <TextInput 
+                placeholder="player@example.com" 
+                style={[styles.input, inputStyle]} 
+                value={email} 
+                onChangeText={setEmail} 
+                autoCapitalize="none"
+                placeholderTextColor={theme.subText}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, labelStyle]}>PASSWORD</Text>
+              <TextInput 
+                placeholder="••••••••" 
+                style={[styles.input, inputStyle]} 
+                value={password} 
+                onChangeText={setPassword} 
+                secureTextEntry 
+                placeholderTextColor={theme.subText}
+              />
+            </View>
+            
+            {/* Main Action Button */}
+            <TouchableOpacity style={[styles.loginBtn, btnStyle]} onPress={handleLogin}>
+              <Text style={styles.loginBtnText}>PLAY NOW</Text>
+            </TouchableOpacity>
+            
+            {/* Secondary Action */}
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.signupContainer}>
+              <Text style={[styles.signupText, { color: theme.subText }]}>
+                New Player? <Text style={[styles.signupLink, linkStyle]}>Create Account</Text>
+              </Text>
+            </TouchableOpacity>
+
           </View>
-          
-          {/* Main Action Button */}
-          <TouchableOpacity style={[styles.loginBtn, btnStyle]} onPress={handleLogin}>
-            <Text style={styles.loginBtnText}>PLAY NOW</Text>
-          </TouchableOpacity>
-          
-          {/* Secondary Action */}
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.signupContainer}>
-            <Text style={[styles.signupText, { color: theme.subText }]}>
-              New Player? <Text style={[styles.signupLink, linkStyle]}>Create Account</Text>
-            </Text>
-          </TouchableOpacity>
 
-        </View>
-
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </ImageBackground>
   );
 }
@@ -138,11 +140,11 @@ const styles = StyleSheet.create({
   // --- BRANDING ---
   brandingContainer: {
     alignItems: 'center',
-    marginBottom: 20, // Increased spacing since logo is gone
+    marginBottom: 40,
   },
   titleImage: {
-    width: 280,    // Increased width slightly to be the main focus
-    height: 150,    
+    width: 280,    
+    height: 80,    
     resizeMode: 'contain',
   },
 

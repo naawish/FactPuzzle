@@ -1,8 +1,7 @@
 // src/screens/HomeScreen.js
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, PanResponder, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, PanResponder, ImageBackground, Alert } from 'react-native';
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
 
@@ -10,7 +9,10 @@ const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
 const GRID_SIZE = 8; 
 
 export default function HomeScreen() {
-  const { user, setUser } = useContext(AuthContext);
+  // ---------------------------------------------------------
+  // 1. PUT IT HERE (Inside the function, at the top)
+  // ---------------------------------------------------------
+  const { user, saveSolvedPuzzle } = useContext(AuthContext); 
   const { theme } = useContext(ThemeContext); 
 
   const [fact, setFact] = useState('');
@@ -21,7 +23,7 @@ export default function HomeScreen() {
   const [selectedLetters, setSelectedLetters] = useState([]);
   const [showFirstLetter, setShowFirstLetter] = useState(false);
   
-  // NEW: State for the Success Popup
+  // State for the Success Popup
   const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   // Refs
@@ -47,7 +49,7 @@ export default function HomeScreen() {
 
   const fetchFact = async () => {
     setLoading(true);
-    setSuccessModalVisible(false); // Hide modal when fetching new
+    setSuccessModalVisible(false); 
     setSelectedLetters([]);
     selectionRef.current = []; 
     setShowFirstLetter(false);
@@ -90,7 +92,6 @@ export default function HomeScreen() {
     setLoading(false);
   };
 
-  // --- MATH HELPER: Calculate Straight Line ---
   const getLineBetween = (startIdx, endIdx) => {
     const startRow = Math.floor(startIdx / GRID_SIZE);
     const startCol = startIdx % GRID_SIZE;
@@ -119,7 +120,6 @@ export default function HomeScreen() {
     return lineIndices;
   };
 
-  // --- GESTURE LOGIC ---
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -194,22 +194,23 @@ export default function HomeScreen() {
   // Win Check
   useEffect(() => {
     const formedWord = selectedLetters.map(s => s.letter).join('');
-    // Trigger Success Modal instead of Alert
     if (formedWord && formedWord === targetWord) {
-      saveFact(); // Save data silently
-      setSuccessModalVisible(true); // Show custom modal
+      saveFact(); 
+      setSuccessModalVisible(true); 
     } 
   }, [selectedLetters, targetWord]); 
 
+  // ---------------------------------------------------------
+  // 2. UPDATED SAVE FUNCTION (Uses the Firebase function)
+  // ---------------------------------------------------------
   const saveFact = async () => {
-    // Prevent duplicate saves if effect runs twice
-    if (user.solved && user.solved.includes(fact)) return;
-    const updatedUser = { ...user, solved: [...(user.solved || []), fact] };
-    setUser(updatedUser);
-    await AsyncStorage.setItem('userProfile', JSON.stringify(updatedUser));
+    // Check if already solved in user's profile
+    if (user?.solved?.includes(fact)) return;
+    
+    // Save to Cloud Database
+    await saveSolvedPuzzle(fact);
   };
 
-  // Handle "Next Puzzle" click
   const handleNextPuzzle = () => {
     setSuccessModalVisible(false);
     fetchFact();
@@ -217,14 +218,12 @@ export default function HomeScreen() {
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.primary}/></View>;
 
-  // DYNAMIC STYLES
+  // Styles
   const cardStyle = { backgroundColor: theme.card, borderColor: theme.border };
   const hintTextStyle = { color: theme.text };
   const hintLabelStyle = { color: theme.primary };
   const gridStyle = { borderColor: theme.border, backgroundColor: theme.card };
   const skipBtnStyle = { backgroundColor: theme.danger, borderColor: theme.danger, borderBottomColor: theme.dangerShadow };
-  
-  // Modal Styles
   const modalStyle = { backgroundColor: theme.card, borderColor: theme.border, borderBottomColor: theme.shadow };
   const modalTextStyle = { color: theme.text };
   const primaryBtnStyle = { backgroundColor: theme.primary, borderBottomColor: theme.shadow };
@@ -288,7 +287,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* --- SUCCESS MODAL --- */}
+      {/* SUCCESS MODAL */}
       <Modal 
         visible={successModalVisible} 
         transparent={true} 
@@ -349,7 +348,7 @@ const styles = StyleSheet.create({
   hintBtn: { backgroundColor: '#4682B4', borderColor: '#4682B4', borderBottomColor: '#2F5D85' },
   btnText: { color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: 1 },
 
-  // --- MODAL STYLES ---
+  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
   modalCard: { 
     width: '85%', borderRadius: 30, padding: 25, alignItems: 'center', 

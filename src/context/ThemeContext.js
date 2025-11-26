@@ -1,12 +1,14 @@
 // src/context/ThemeContext.js
-import React, { createContext, useState, useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useState, useEffect, useMemo } from 'react';
+import { useColorScheme } from 'react-native'; // <--- This hook listens to the device
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const systemScheme = useColorScheme();
+  // 1. Listen to the device theme (updates automatically)
+  const systemScheme = useColorScheme(); 
+  
   const [useSystemTheme, setUseSystemTheme] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -35,9 +37,12 @@ export const ThemeProvider = ({ children }) => {
     await AsyncStorage.setItem('isDarkMode', JSON.stringify(value));
   };
 
-  const isDark = useSystemTheme ? systemScheme === 'dark' : isDarkMode;
+  // 2. Logic: If System is ON, use systemScheme. Otherwise use manual toggle.
+  // We default to 'light' if systemScheme is undefined (rare)
+  const isDark = useSystemTheme ? (systemScheme === 'dark') : isDarkMode;
 
-  const theme = {
+  // 3. Define Theme Colors (Memoized to prevent flickering)
+  const theme = useMemo(() => ({
     // Backgrounds
     background: isDark ? '#0F172A' : '#F5F5F5',
     card:       isDark ? '#1E293B' : '#FFFFFF',
@@ -55,10 +60,9 @@ export const ThemeProvider = ({ children }) => {
     
     // Action Colors
     success:    '#32CD32',
-    // Danger: Hot Pink (Dark) vs Red-Orange (Light)
     danger:     isDark ? '#D946EF' : '#FF4500', 
     dangerShadow: isDark ? '#A21CAF' : '#C03500'
-  };
+  }), [isDark]); // Re-calculate only when isDark changes
 
   return (
     <ThemeContext.Provider value={{ 

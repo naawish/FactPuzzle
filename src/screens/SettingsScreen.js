@@ -1,14 +1,16 @@
 // src/screens/SettingsScreen.js
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, Modal, ScrollView, ImageBackground, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 export default function SettingsScreen() {
   const { user, logout, updateProfile, changePassword } = useContext(AuthContext);
+  
+  // Access the new Theme Palette
   const { theme, useSystemTheme, toggleSystemTheme, isDarkMode, toggleDarkMode } = useContext(ThemeContext);
 
-  // --- STATES ---
+  // States
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
@@ -20,40 +22,28 @@ export default function SettingsScreen() {
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
 
-  // --- HANDLERS ---
-
-  // Open Profile Edit
+  // --- Handlers (Same as before) ---
   const openProfileModal = () => {
     setEditName(user?.username || '');
     setEditEmail(user?.email || '');
     setProfileModalVisible(true);
   };
 
-  // Save Profile
   const handleSaveProfile = async () => {
-    if (!editName || !editEmail) {
-      Alert.alert("Error", "Fields cannot be empty");
-      return;
-    }
+    if (!editName || !editEmail) { Alert.alert("Error", "Fields cannot be empty"); return; }
     await updateProfile(editName, editEmail);
     setProfileModalVisible(false);
     Alert.alert("Success", "Profile updated successfully!");
   };
 
-  // Open Password Edit
   const openPasswordModal = () => {
     setCurrentPass('');
     setNewPass('');
     setPasswordModalVisible(true);
   };
 
-  // Save Password
   const handleSavePassword = async () => {
-    if (!currentPass || !newPass) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
-    
+    if (!currentPass || !newPass) { Alert.alert("Error", "Please fill in all fields"); return; }
     const success = await changePassword(currentPass, newPass);
     if (success) {
       setPasswordModalVisible(false);
@@ -68,37 +58,39 @@ export default function SettingsScreen() {
     logout();
   };
 
-  // Dynamic Styles
+  // --- DYNAMIC STYLES ---
+  // These use the Context variables to switch colors automatically
   const cardStyle = { 
     backgroundColor: theme.card,
-    borderColor: theme.primary, 
+    borderColor: theme.border,
+    borderBottomColor: theme.shadow
   };
   const textStyle = { color: theme.text };
   const subTextStyle = { color: theme.subText };
+  const headerStyle = { color: theme.primary };
   const inputStyle = { 
-    backgroundColor: theme.background === '#121212' ? '#333' : '#F5F5F5', 
+    backgroundColor: theme.background === '#0F172A' ? '#334155' : '#F5F5F5', 
     color: theme.text,
     borderColor: theme.border
   };
 
   return (
     <ImageBackground 
+      // Note: You might want a separate dark background image in the future!
       source={require('../../assets/background.png')} 
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.background }]} 
+      imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }} // Fade image in dark mode
       resizeMode="cover"
     >
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           
           {/* --- ACCOUNT CARD --- */}
           <View style={[styles.gameCard, cardStyle]}>
             <View style={styles.cardHeaderRow}>
-              <Text style={styles.cardHeader}>PLAYER ACCOUNT</Text>
+              <Text style={[styles.cardHeader, headerStyle]}>PLAYER ACCOUNT</Text>
               <TouchableOpacity onPress={openProfileModal}>
-                <Text style={styles.editLink}>EDIT</Text>
+                <Text style={[styles.editLink, { color: theme.primary }]}>EDIT</Text>
               </TouchableOpacity>
             </View>
             
@@ -106,23 +98,20 @@ export default function SettingsScreen() {
               <Text style={[styles.label, textStyle]}>USERNAME</Text>
               <Text style={[styles.value, subTextStyle]}>{user?.username}</Text>
             </View>
-            
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
-            
             <View style={styles.row}>
               <Text style={[styles.label, textStyle]}>EMAIL</Text>
               <Text style={[styles.value, subTextStyle]}>{user?.email}</Text>
             </View>
           </View>
 
-          {/* --- SECURITY CARD (NEW) --- */}
+          {/* --- SECURITY CARD --- */}
           <View style={[styles.gameCard, cardStyle]}>
-            <Text style={styles.cardHeader}>SECURITY</Text>
+            <Text style={[styles.cardHeader, headerStyle]}>SECURITY</Text>
             <View style={styles.row}>
               <Text style={[styles.label, textStyle]}>PASSWORD</Text>
               <Text style={[styles.value, subTextStyle]}>••••••••</Text>
             </View>
-            
             <TouchableOpacity style={styles.actionBtn} onPress={openPasswordModal}>
               <Text style={styles.actionBtnText}>CHANGE PASSWORD</Text>
             </TouchableOpacity>
@@ -130,8 +119,7 @@ export default function SettingsScreen() {
 
           {/* --- APPEARANCE CARD --- */}
           <View style={[styles.gameCard, cardStyle]}>
-            <Text style={styles.cardHeader}>VISUALS</Text>
-            
+            <Text style={[styles.cardHeader, headerStyle]}>VISUALS</Text>
             <View style={styles.row}>
               <View>
                 <Text style={[styles.label, textStyle]}>AUTO THEME</Text>
@@ -140,36 +128,22 @@ export default function SettingsScreen() {
               <Switch 
                 value={useSystemTheme} 
                 onValueChange={toggleSystemTheme} 
-                trackColor={{ false: "#767577", true: "#FF8C00" }}
+                trackColor={{ false: "#767577", true: theme.primary }}
               />
             </View>
-
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
             <View style={[styles.row, useSystemTheme && styles.disabledRow]}>
               <Text style={[styles.label, textStyle]}>DARK MODE</Text>
               <Switch 
                 disabled={useSystemTheme}
                 value={isDarkMode} 
                 onValueChange={toggleDarkMode}
-                trackColor={{ false: "#767577", true: "#FF8C00" }}
+                trackColor={{ false: "#767577", true: theme.primary }}
               />
             </View>
           </View>
 
-          {/* --- NOTIFICATIONS CARD --- */}
-          <View style={[styles.gameCard, cardStyle]}>
-            <Text style={styles.cardHeader}>ALERTS</Text>
-            <View style={styles.row}>
-              <Text style={[styles.label, textStyle]}>PUSH NOTIFICATIONS</Text>
-              <Switch 
-                value={notifications} 
-                onValueChange={setNotifications}
-                trackColor={{ false: "#767577", true: "#FF8C00" }}
-              />
-            </View>
-          </View>
-
+          {/* --- LOGOUT --- */}
           <TouchableOpacity style={styles.logoutBtn} onPress={() => setLogoutModalVisible(true)}>
             <Text style={styles.logoutText}>LOG OUT</Text>
           </TouchableOpacity>
@@ -177,23 +151,22 @@ export default function SettingsScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* --- MODAL: EDIT PROFILE --- */}
+      {/* --- MODAL REUSE STYLES --- */}
+      {/* (We apply cardStyle to modals to match the theme) */}
+
       <Modal visible={profileModalVisible} transparent={true} animationType="fade" onRequestClose={() => setProfileModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, cardStyle]}>
-            <Text style={styles.modalTitle}>EDIT PROFILE</Text>
-            
+            <Text style={[styles.modalTitle, headerStyle]}>EDIT PROFILE</Text>
             <Text style={[styles.inputLabel, textStyle]}>USERNAME</Text>
-            <TextInput style={[styles.input, inputStyle]} value={editName} onChangeText={setEditName} />
-
+            <TextInput style={[styles.input, inputStyle]} value={editName} onChangeText={setEditName} placeholderTextColor="#999"/>
             <Text style={[styles.inputLabel, textStyle]}>EMAIL</Text>
-            <TextInput style={[styles.input, inputStyle]} value={editEmail} onChangeText={setEditEmail} autoCapitalize="none" />
-
+            <TextInput style={[styles.input, inputStyle]} value={editEmail} onChangeText={setEditEmail} autoCapitalize="none" placeholderTextColor="#999"/>
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setProfileModalVisible(false)}>
                 <Text style={styles.cancelText}>CANCEL</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.confirmBtn]} onPress={handleSaveProfile}>
+              <TouchableOpacity style={[styles.modalBtn, styles.confirmBtn, { backgroundColor: theme.primary, borderBottomColor: theme.shadow }]} onPress={handleSaveProfile}>
                 <Text style={styles.confirmText}>SAVE</Text>
               </TouchableOpacity>
             </View>
@@ -201,37 +174,19 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* --- MODAL: CHANGE PASSWORD --- */}
       <Modal visible={passwordModalVisible} transparent={true} animationType="fade" onRequestClose={() => setPasswordModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, cardStyle]}>
-            <Text style={styles.modalTitle}>CHANGE PASSWORD</Text>
-            
+            <Text style={[styles.modalTitle, headerStyle]}>CHANGE PASSWORD</Text>
             <Text style={[styles.inputLabel, textStyle]}>CURRENT PASSWORD</Text>
-            <TextInput 
-              style={[styles.input, inputStyle]} 
-              value={currentPass} 
-              onChangeText={setCurrentPass} 
-              secureTextEntry 
-              placeholder="Enter current password"
-              placeholderTextColor="#999"
-            />
-
+            <TextInput style={[styles.input, inputStyle]} value={currentPass} onChangeText={setCurrentPass} secureTextEntry placeholderTextColor="#999"/>
             <Text style={[styles.inputLabel, textStyle]}>NEW PASSWORD</Text>
-            <TextInput 
-              style={[styles.input, inputStyle]} 
-              value={newPass} 
-              onChangeText={setNewPass} 
-              secureTextEntry 
-              placeholder="Enter new password"
-              placeholderTextColor="#999"
-            />
-
+            <TextInput style={[styles.input, inputStyle]} value={newPass} onChangeText={setNewPass} secureTextEntry placeholderTextColor="#999"/>
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setPasswordModalVisible(false)}>
                 <Text style={styles.cancelText}>CANCEL</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.confirmBtn]} onPress={handleSavePassword}>
+              <TouchableOpacity style={[styles.modalBtn, styles.confirmBtn, { backgroundColor: theme.primary, borderBottomColor: theme.shadow }]} onPress={handleSavePassword}>
                 <Text style={styles.confirmText}>UPDATE</Text>
               </TouchableOpacity>
             </View>
@@ -239,11 +194,10 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* --- MODAL: LOGOUT --- */}
       <Modal visible={logoutModalVisible} transparent={true} animationType="fade" onRequestClose={() => setLogoutModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, cardStyle]}>
-            <Text style={styles.modalTitle}>EXIT GAME?</Text>
+            <Text style={[styles.modalTitle, headerStyle]}>EXIT GAME?</Text>
             <Text style={[styles.modalMessage, textStyle]}>Are you sure you want to sign out?</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setLogoutModalVisible(false)}>
@@ -265,22 +219,18 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20 },
   
-  // --- CARDS ---
+  // Game Card structure (Colors are dynamic now)
   gameCard: {
     marginBottom: 20,
     borderRadius: 20,
     padding: 20,
     borderWidth: 3,
     borderBottomWidth: 6, 
-    borderBottomColor: '#C06600',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
     elevation: 5
   },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  cardHeader: { fontSize: 14, color: '#FF8C00', fontWeight: '900', letterSpacing: 1 },
-  editLink: { color: '#4682B4', fontWeight: 'bold', fontSize: 12 },
+  cardHeader: { fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+  editLink: { fontWeight: 'bold', fontSize: 12 },
   
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
   label: { fontSize: 16, fontWeight: '700' },
@@ -289,7 +239,6 @@ const styles = StyleSheet.create({
   divider: { height: 2, marginVertical: 10, opacity: 0.5 },
   disabledRow: { opacity: 0.4 },
 
-  // --- BUTTONS ---
   actionBtn: {
     marginTop: 15,
     backgroundColor: '#E0E0E0',
@@ -317,18 +266,17 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: 'white', fontWeight: '900', fontSize: 18, letterSpacing: 1 },
 
-  // --- MODALS ---
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+  // Modals
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
   modalCard: { 
     width: '85%', 
     borderRadius: 25, 
     padding: 25, 
     borderWidth: 3,
     borderBottomWidth: 6,
-    borderBottomColor: '#C06600',
     elevation: 10
   },
-  modalTitle: { fontSize: 20, fontWeight: '900', color: '#FF8C00', marginBottom: 20, textAlign: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: '900', marginBottom: 20, textAlign: 'center' },
   modalMessage: { fontSize: 16, textAlign: 'center', marginBottom: 25, fontWeight: '500' },
   
   inputLabel: { fontSize: 12, fontWeight: 'bold', marginBottom: 5, marginTop: 10 },
@@ -344,8 +292,8 @@ const styles = StyleSheet.create({
   modalBtn: { flex: 1, paddingVertical: 12, borderRadius: 15, alignItems: 'center', borderBottomWidth: 4 },
   
   cancelBtn: { backgroundColor: '#E0E0E0', borderBottomColor: '#999' },
-  confirmBtn: { backgroundColor: '#4682B4', borderBottomColor: '#2F5D85' }, // Blue for Save
-  logoutActionBtn: { backgroundColor: '#FF4500', borderBottomColor: '#C03500' }, // Red for Logout
+  confirmBtn: { /* Dynamic Color */ }, 
+  logoutActionBtn: { backgroundColor: '#FF4500', borderBottomColor: '#C03500' },
   
   cancelText: { color: '#333', fontWeight: '900' },
   confirmText: { color: 'white', fontWeight: '900' }

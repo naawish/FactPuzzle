@@ -146,7 +146,6 @@ export default function HomeScreen() {
     }
   };
 
-  // Win Check
   useEffect(() => {
     const formedWord = selectedLetters.map(s => s.letter).join('');
     if (formedWord && formedWord === targetWord) {
@@ -166,22 +165,25 @@ export default function HomeScreen() {
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#FF8C00"/></View>;
 
   return (
-    // REPLACE VIEW WITH IMAGE BACKGROUND
     <ImageBackground 
       source={require('../../assets/background.png')} 
       style={styles.container}
       resizeMode="cover"
     >
-      <View style={styles.hintContainer}>
+      {/* 1. Styled Hint Card */}
+      <View style={styles.card}>
          <Text style={styles.hintLabel}>Complete the Fact:</Text>
          <Text style={styles.hintText}>"{hint}"</Text>
       </View>
 
-      <Text style={styles.clue}>
-        Word Length: {targetWord.length} letters 
-        {showFirstLetter ? ` | Starts with: ${targetWord[0]}` : ''}
-      </Text>
+      <View style={styles.clueContainer}>
+        <Text style={styles.clueText}>
+          Length: {targetWord.length} 
+          {showFirstLetter ? ` | Starts: ${targetWord[0]}` : ''}
+        </Text>
+      </View>
       
+      {/* 2. Grid with Thick Border */}
       <View 
         style={styles.gridContainer}
         ref={gridViewRef}
@@ -205,13 +207,14 @@ export default function HomeScreen() {
         })}
       </View>
 
+      {/* 3. 3D Buttons */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.helperBtn} onPress={() => setShowFirstLetter(true)}>
-          <Text style={styles.helperText}>Hint</Text>
+        <TouchableOpacity style={[styles.gameBtn, styles.hintBtn]} onPress={() => setShowFirstLetter(true)}>
+          <Text style={styles.btnText}>HINT</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.skipBtn} onPress={fetchFact}>
-          <Text style={styles.skipText}>Skip</Text>
+        <TouchableOpacity style={[styles.gameBtn, styles.skipBtn]} onPress={fetchFact}>
+          <Text style={styles.btnText}>SKIP</Text>
         </TouchableOpacity>
       </View>
     </ImageBackground>
@@ -222,16 +225,41 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     padding: 20, 
-    // backgroundColor: '#FFF5E1', <--- REMOVED
     alignItems: 'center', 
     justifyContent: 'center' 
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
-  hintContainer: { marginBottom: 15, padding: 15, backgroundColor: '#FFF', borderRadius: 10, width: '100%', elevation: 3 },
+  // --- CARD STYLING ---
+  card: { 
+    marginBottom: 15, 
+    padding: 20, 
+    backgroundColor: '#FFF', 
+    borderRadius: 20, 
+    width: '100%', 
+    // Thick Border
+    borderWidth: 3,
+    borderColor: '#FF8C00',
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5
+  },
   hintLabel: { fontSize: 12, color: '#FF8C00', fontWeight: 'bold', marginBottom: 5, textTransform: 'uppercase' },
-  hintText: { fontSize: 16, color: '#333', fontStyle: 'italic', textAlign: 'center', lineHeight: 22 },
-  clue: { fontSize: 14, color: '#FF4500', marginBottom: 15, fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.7)', padding: 5, borderRadius: 5 }, // Added background for readability
+  hintText: { fontSize: 18, color: '#333', fontStyle: 'italic', textAlign: 'center', lineHeight: 24, fontWeight: '500' },
+  
+  clueContainer: { 
+    backgroundColor: 'rgba(255,255,255,0.9)', 
+    paddingVertical: 5, 
+    paddingHorizontal: 15, 
+    borderRadius: 15, 
+    marginBottom: 15,
+    borderWidth: 2,
+    borderColor: '#FF4500'
+  },
+  clueText: { fontSize: 16, color: '#FF4500', fontWeight: 'bold' },
   
   gridContainer: { 
     width: '100%',             
@@ -240,8 +268,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap', 
     backgroundColor: '#fff', 
     borderColor: '#FF8C00', 
-    borderWidth: 2,
-    borderRadius: 5,
+    borderWidth: 4, // Thicker border for board
+    borderRadius: 10,
     overflow: 'hidden',        
   },
   
@@ -254,12 +282,28 @@ const styles = StyleSheet.create({
     borderColor: '#eee' 
   },
   
-  cellSelected: { backgroundColor: '#FFFF00' },
-  cellText: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  cellSelected: { backgroundColor: '#FFD700' }, // Gold color for selection
+  cellText: { fontSize: 20, fontWeight: 'bold', color: '#333' },
   
-  footer: { marginTop: 20, flexDirection: 'row', gap: 20 },
-  helperBtn: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: '#4682B4', borderRadius: 20 },
-  helperText: { color: '#fff', fontWeight: 'bold' },
-  skipBtn: { paddingVertical: 10, paddingHorizontal: 25, backgroundColor: '#FF6347', borderRadius: 20 },
-  skipText: { color: '#fff', fontWeight: 'bold' }
+  footer: { marginTop: 25, flexDirection: 'row', gap: 20 },
+  
+  // --- 3D BUTTON STYLES ---
+  gameBtn: {
+    paddingVertical: 12, 
+    paddingHorizontal: 30, 
+    borderRadius: 25,
+    alignItems: 'center',
+    borderBottomWidth: 5, // 3D Effect
+  },
+  hintBtn: {
+    backgroundColor: '#4682B4', 
+    borderColor: '#4682B4',
+    borderBottomColor: '#2F5D85',
+  },
+  skipBtn: {
+    backgroundColor: '#FF4500', 
+    borderColor: '#FF4500',
+    borderBottomColor: '#C03500',
+  },
+  btnText: { color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: 1 }
 });

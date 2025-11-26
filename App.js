@@ -1,10 +1,11 @@
 // App.js
 import React, { useContext } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native'; 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons'; 
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
+import { ThemeProvider, ThemeContext } from './src/context/ThemeContext'; 
 
 // Import Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -17,76 +18,30 @@ import SettingsScreen from './src/screens/SettingsScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-function AppTabs() {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        // 1. Header Styling
-        headerStyle: { backgroundColor: '#FF8C00', shadowColor: 'transparent' }, 
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' },
-        
-        // 2. Tab Bar Styling (UPDATED HERE)
-        tabBarActiveTintColor: '#FF8C00',
-        tabBarInactiveTintColor: 'gray',
-        tabBarStyle: { 
-          height: 70,        // Increased height
-          paddingBottom: 10, // Push content up from bottom edge
-          paddingTop: 10,    // Push content down from top edge
-          backgroundColor: '#FFF',
-          borderTopWidth: 0,
-          elevation: 10, 
-          shadowColor: '#000', 
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          paddingBottom: 5, // Extra space below the text title
-        },
-
-        // 3. ICON LOGIC
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          if (route.name === 'Home') {
-            iconName = focused ? 'extension-puzzle' : 'extension-puzzle-outline';
-          } else if (route.name === 'Community') {
-            iconName = focused ? 'trophy' : 'trophy-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeScreen} 
-        options={{ title: 'Daily Puzzle' }} 
-      />
-      <Tab.Screen 
-        name="Community" 
-        component={CommunityScreen} 
-        options={{ title: 'Leaderboard' }} 
-      />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen} 
-        options={{ title: 'My Profile' }} 
-      />
-    </Tab.Navigator>
-  );
-}
-
-function Navigation() {
+function AppNavigation() {
   const { user } = useContext(AuthContext);
+  const { isDark, theme } = useContext(ThemeContext);
+
+  // --- FIX IS HERE ---
+  // 1. Pick the base theme (Default or Dark) so we get the 'fonts' property automatically
+  const BaseTheme = isDark ? DarkTheme : DefaultTheme;
+
+  // 2. Create our custom theme by merging the base theme with our colors
+  const MyNavTheme = {
+    ...BaseTheme, // <--- This fixes the "regular of undefined" error
+    colors: {
+      ...BaseTheme.colors,
+      primary: theme.primary,
+      background: theme.background,
+      card: theme.card,
+      text: theme.text,
+      border: theme.border,
+      notification: theme.primary,
+    },
+  };
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={MyNavTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
           <>
@@ -102,7 +57,7 @@ function Navigation() {
               options={{ 
                 headerShown: true, 
                 title: 'Account Settings',
-                headerStyle: { backgroundColor: '#FF8C00' },
+                headerStyle: { backgroundColor: theme.primary },
                 headerTintColor: '#fff'
               }} 
             />
@@ -113,10 +68,58 @@ function Navigation() {
   );
 }
 
+function AppTabs() {
+  const { theme } = useContext(ThemeContext);
+  
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerStyle: { backgroundColor: theme.primary, shadowColor: 'transparent' }, 
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: 'bold' },
+        
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: 'gray',
+        tabBarStyle: { 
+          height: 70,        
+          paddingBottom: 10, 
+          paddingTop: 10,    
+          backgroundColor: theme.card, 
+          borderTopWidth: 0,
+          borderTopColor: theme.border,
+          elevation: 10, 
+          shadowColor: '#000', 
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+          paddingBottom: 5, 
+        },
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          if (route.name === 'Home') iconName = focused ? 'extension-puzzle' : 'extension-puzzle-outline';
+          else if (route.name === 'Community') iconName = focused ? 'trophy' : 'trophy-outline';
+          else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Daily Puzzle' }} />
+      <Tab.Screen name="Community" component={CommunityScreen} options={{ title: 'Leaderboard' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
-      <Navigation />
+      <ThemeProvider>
+        <AppNavigation />
+      </ThemeProvider>
     </AuthProvider>
   );
 }

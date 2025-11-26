@@ -9,7 +9,7 @@ const COLUMN_WIDTH = (width - 60) / 2; // 2 Columns with padding
 
 // GAME CONFIGURATION
 const GAMES = [
-  // Game 1: Word Finder (Unlocked)
+  // Game 1: Word Finder
   { 
     id: 'wordfinder', 
     title: 'WORD FINDER', 
@@ -17,19 +17,26 @@ const GAMES = [
     screen: 'WordFinder', 
     locked: false 
   },
-  // Game 2: Hangman (Unlocked)
+  // Game 2: Hangman
   { 
     id: 'hangman', 
     title: 'HANGMAN', 
-    icon: 'accessibility', // Stick figure icon
+    icon: 'accessibility', // Stick figure-ish icon
     screen: 'Hangman', 
     locked: false 
   },
+  // Game 3: Trivia (NEWLY UNLOCKED)
+  { 
+    id: 'trivia', 
+    title: 'TRIVIA', 
+    icon: 'bulb', // Lightbulb for knowledge
+    screen: 'Trivia', 
+    locked: false 
+  },
   // Placeholders
-  { id: 'coming1', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
-  { id: 'coming2', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
-  { id: 'coming3', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
   { id: 'coming4', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
+  { id: 'coming5', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
+  { id: 'coming6', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
 ];
 
 export default function HomeScreen({ navigation }) {
@@ -52,7 +59,7 @@ export default function HomeScreen({ navigation }) {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* HEADER SECTION */}
         <View style={styles.headerContainer}>
@@ -120,7 +127,7 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingTop: 60 }, // Extra top padding for safe area
+  scrollContent: { padding: 20, paddingTop: 60, paddingBottom: 40 }, // Extra padding
   
   headerContainer: { marginBottom: 30, alignItems: 'center' },
   header: { fontSize: 32, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },

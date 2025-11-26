@@ -1,11 +1,11 @@
 // App.js
 import React, { useContext } from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native'; 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons'; 
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
-import { ThemeProvider, ThemeContext } from './src/context/ThemeContext';
+import { ThemeProvider, ThemeContext } from './src/context/ThemeContext'; 
 
 // --- SCREENS ---
 import LoginScreen from './src/screens/LoginScreen';
@@ -17,18 +17,21 @@ import SettingsScreen from './src/screens/SettingsScreen';
 
 // --- GAMES ---
 import WordFinderGame from './src/games/WordFinderGame';
+// Note: Ensure these files exist in src/games/ or update path accordingly
 import HangmanGame from './src/games/HangmanGame';
+import TriviaGame from './src/games/TriviaGame';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// --- MAIN NAVIGATION STACK ---
 function AppNavigation() {
   const { user } = useContext(AuthContext);
   const { isDark, theme } = useContext(ThemeContext);
 
-  // Merge Default Navigation Theme with our Custom Colors
+  // 1. Pick the base theme to get standard fonts and behaviors
   const BaseTheme = isDark ? DarkTheme : DefaultTheme;
+
+  // 2. Merge with our Custom Colors
   const MyNavTheme = {
     ...BaseTheme,
     colors: {
@@ -42,6 +45,14 @@ function AppNavigation() {
     },
   };
 
+  // Shared Header Options for Stack Screens
+  const stackHeaderOptions = (title) => ({
+    headerShown: true, 
+    title: title,
+    headerStyle: { backgroundColor: theme.primary },
+    headerTintColor: '#fff'
+  });
+
   return (
     <NavigationContainer theme={MyNavTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -54,45 +65,33 @@ function AppNavigation() {
         ) : (
           // --- APP STACK ---
           <>
-            {/* Main Tabs (Hub, Leaderboard, Profile) */}
+            {/* Main Tab Bar */}
             <Stack.Screen name="Main" component={AppTabs} />
             
-            {/* Settings Screen */}
+            {/* Settings */}
             <Stack.Screen 
               name="Settings" 
               component={SettingsScreen} 
-              options={{ 
-                headerShown: true, 
-                title: 'Account Settings',
-                headerStyle: { backgroundColor: theme.primary },
-                headerTintColor: '#fff'
-              }} 
+              options={stackHeaderOptions('Account Settings')} 
             />
 
             {/* --- GAMES --- */}
-            
-            {/* 1. Word Finder */}
             <Stack.Screen 
               name="WordFinder" 
               component={WordFinderGame} 
-              options={{ 
-                headerShown: true, 
-                title: 'Word Finder',
-                headerStyle: { backgroundColor: theme.primary },
-                headerTintColor: '#fff'
-              }} 
+              options={stackHeaderOptions('Word Finder')} 
             />
-
-            {/* 2. Hangman */}
+            
             <Stack.Screen 
               name="Hangman" 
               component={HangmanGame} 
-              options={{ 
-                headerShown: true, 
-                title: 'Hangman',
-                headerStyle: { backgroundColor: theme.primary },
-                headerTintColor: '#fff'
-              }} 
+              options={stackHeaderOptions('Hangman')} 
+            />
+
+            <Stack.Screen 
+              name="Trivia" 
+              component={TriviaGame} 
+              options={stackHeaderOptions('Trivia Challenge')} 
             />
           </>
         )}
@@ -101,19 +100,18 @@ function AppNavigation() {
   );
 }
 
-// --- BOTTOM TAB NAVIGATION ---
 function AppTabs() {
   const { theme } = useContext(ThemeContext);
   
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        // Header Style
-        headerStyle: { backgroundColor: theme.primary, shadowColor: 'transparent' },
+        // Header Styling
+        headerStyle: { backgroundColor: theme.primary, shadowColor: 'transparent' }, 
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
         
-        // Tab Bar Style
+        // Tab Bar Styling
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: 'gray',
         tabBarStyle: { 
@@ -134,7 +132,7 @@ function AppTabs() {
           fontWeight: '600',
           paddingBottom: 5, 
         },
-        // Dynamic Icons
+        // Icon Logic
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
           if (route.name === 'Home') {
@@ -148,14 +146,25 @@ function AppTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Game Hub' }} />
-      <Tab.Screen name="Community" component={CommunityScreen} options={{ title: 'Leaderboard' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{ title: 'Game Hub' }} 
+      />
+      <Tab.Screen 
+        name="Community" 
+        component={CommunityScreen} 
+        options={{ title: 'Leaderboard' }} 
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen} 
+        options={{ title: 'My Profile' }} 
+      />
     </Tab.Navigator>
   );
 }
 
-// --- ROOT COMPONENT ---
 export default function App() {
   return (
     <AuthProvider>

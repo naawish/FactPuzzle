@@ -13,14 +13,15 @@ import {
   Platform 
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-import { ThemeContext } from '../context/ThemeContext'; // <--- IMPORT THIS
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
   const { login } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext); // <--- USE THEME
+  // Get isDark to switch images
+  const { theme, isDark } = useContext(ThemeContext); 
 
   const handleLogin = async () => {
     const success = await login(email, password);
@@ -31,11 +32,10 @@ export default function LoginScreen({ navigation }) {
   const cardStyle = { 
     backgroundColor: theme.card, 
     borderColor: theme.border,
-    borderBottomColor: theme.shadow // 3D Shadow Color
+    borderBottomColor: theme.shadow 
   };
   
   const inputStyle = { 
-    // Darker background for inputs in Dark Mode
     backgroundColor: theme.background === '#0F172A' ? '#334155' : '#F5F5F5', 
     color: theme.text,
     borderColor: theme.border
@@ -46,7 +46,6 @@ export default function LoginScreen({ navigation }) {
     borderBottomColor: theme.shadow 
   };
 
-  const textStyle = { color: theme.text };
   const labelStyle = { color: theme.primary };
   const linkStyle = { color: theme.primary };
 
@@ -54,7 +53,6 @@ export default function LoginScreen({ navigation }) {
     <ImageBackground 
       source={require('../../assets/Login-Background.png')} 
       style={[styles.background, { backgroundColor: theme.background }]}
-      // Fade the background image in Dark Mode so it blends with the dark blue theme
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.4 : 1 }} 
       resizeMode="cover"
     >
@@ -65,15 +63,15 @@ export default function LoginScreen({ navigation }) {
         
         {/* --- BRANDING --- */}
         <View style={styles.brandingContainer}>
+          {/* Logo Removed as requested */}
+          
+          {/* Dynamic Title Image */}
           <Image 
-            source={require('../../assets/Logo.png')} 
-            style={styles.logoImage}
-          />
-          {/* Note: Title.png might be orange. If you want it dynamic, 
-              you might need a separate White version or use Text instead. 
-              For now, we keep the image. */}
-          <Image 
-            source={require('../../assets/Title.png')} 
+            source={
+              isDark 
+                ? require('../../assets/Title-Dark.png') 
+                : require('../../assets/Title-Light.png')
+            } 
             style={styles.titleImage}
           />
         </View>
@@ -140,17 +138,11 @@ const styles = StyleSheet.create({
   // --- BRANDING ---
   brandingContainer: {
     alignItems: 'center',
-    marginBottom: 20, 
-  },
-  logoImage: {
-    width: 100,    
-    height: 100,
-    resizeMode: 'contain',
-    marginBottom: 5, 
+    marginBottom: 20, // Increased spacing since logo is gone
   },
   titleImage: {
-    width: 240,    
-    height: 50,    
+    width: 280,    // Increased width slightly to be the main focus
+    height: 150,    
     resizeMode: 'contain',
   },
 
@@ -161,12 +153,8 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
     paddingHorizontal: 25,
     borderRadius: 30,
-    
-    // 3D Borders
     borderWidth: 4,
-    borderBottomWidth: 8, // Thicker bottom for 3D effect
-    
-    // Shadows
+    borderBottomWidth: 8, 
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
@@ -204,10 +192,9 @@ const styles = StyleSheet.create({
   // --- BUTTON STYLING ---
   loginBtn: { 
     paddingVertical: 18, 
-    borderRadius: 50, // Pill Shape
+    borderRadius: 50, 
     alignItems: 'center',
     marginTop: 15,
-    // 3D Button Effect
     borderBottomWidth: 6,
   },
   loginBtnText: { 

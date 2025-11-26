@@ -13,21 +13,49 @@ import {
   Platform 
 } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
+import { ThemeContext } from '../context/ThemeContext'; // <--- IMPORT THIS
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
   const { login } = useContext(AuthContext);
+  const { theme } = useContext(ThemeContext); // <--- USE THEME
 
   const handleLogin = async () => {
     const success = await login(email, password);
     if (!success) Alert.alert('Error', 'Invalid credentials or user not found.');
   };
 
+  // --- DYNAMIC STYLES ---
+  const cardStyle = { 
+    backgroundColor: theme.card, 
+    borderColor: theme.border,
+    borderBottomColor: theme.shadow // 3D Shadow Color
+  };
+  
+  const inputStyle = { 
+    // Darker background for inputs in Dark Mode
+    backgroundColor: theme.background === '#0F172A' ? '#334155' : '#F5F5F5', 
+    color: theme.text,
+    borderColor: theme.border
+  };
+
+  const btnStyle = { 
+    backgroundColor: theme.primary, 
+    borderBottomColor: theme.shadow 
+  };
+
+  const textStyle = { color: theme.text };
+  const labelStyle = { color: theme.primary };
+  const linkStyle = { color: theme.primary };
+
   return (
     <ImageBackground 
       source={require('../../assets/Login-Background.png')} 
-      style={styles.background}
+      style={[styles.background, { backgroundColor: theme.background }]}
+      // Fade the background image in Dark Mode so it blends with the dark blue theme
+      imageStyle={{ opacity: theme.background === '#0F172A' ? 0.4 : 1 }} 
       resizeMode="cover"
     >
       <KeyboardAvoidingView 
@@ -41,50 +69,53 @@ export default function LoginScreen({ navigation }) {
             source={require('../../assets/Logo.png')} 
             style={styles.logoImage}
           />
+          {/* Note: Title.png might be orange. If you want it dynamic, 
+              you might need a separate White version or use Text instead. 
+              For now, we keep the image. */}
           <Image 
             source={require('../../assets/Title.png')} 
             style={styles.titleImage}
           />
         </View>
 
-        {/* --- CUSTOM DESIGNED CARD --- */}
-        <View style={styles.card}>
+        {/* --- GAME CARD --- */}
+        <View style={[styles.card, cardStyle]}>
           
-          <Text style={styles.cardHeader}>Welcome Back!</Text>
+          <Text style={[styles.cardHeader, { color: theme.primary }]}>Welcome Back!</Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>EMAIL</Text>
+            <Text style={[styles.inputLabel, labelStyle]}>EMAIL</Text>
             <TextInput 
               placeholder="player@example.com" 
-              style={styles.input} 
+              style={[styles.input, inputStyle]} 
               value={email} 
               onChangeText={setEmail} 
               autoCapitalize="none"
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.subText}
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>PASSWORD</Text>
+            <Text style={[styles.inputLabel, labelStyle]}>PASSWORD</Text>
             <TextInput 
               placeholder="••••••••" 
-              style={styles.input} 
+              style={[styles.input, inputStyle]} 
               value={password} 
               onChangeText={setPassword} 
               secureTextEntry 
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.subText}
             />
           </View>
           
           {/* Main Action Button */}
-          <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
+          <TouchableOpacity style={[styles.loginBtn, btnStyle]} onPress={handleLogin}>
             <Text style={styles.loginBtnText}>PLAY NOW</Text>
           </TouchableOpacity>
           
           {/* Secondary Action */}
           <TouchableOpacity onPress={() => navigation.navigate('Signup')} style={styles.signupContainer}>
-            <Text style={styles.signupText}>
-              New Player? <Text style={styles.signupLink}>Create Account</Text>
+            <Text style={[styles.signupText, { color: theme.subText }]}>
+              New Player? <Text style={[styles.signupLink, linkStyle]}>Create Account</Text>
             </Text>
           </TouchableOpacity>
 
@@ -123,21 +154,22 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
 
-  // --- CARD DESIGN (The "Custom" Part) ---
+  // --- CARD DESIGN ---
   card: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#FFFFFF',
     paddingVertical: 30,
     paddingHorizontal: 25,
     borderRadius: 30,
-    // Add a Thick Orange Border to match the game vibe
+    
+    // 3D Borders
     borderWidth: 4,
-    borderColor: '#FF8C00',
-    // Heavy Shadow for a "Pop" effect
+    borderBottomWidth: 8, // Thicker bottom for 3D effect
+    
+    // Shadows
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 10, 
   },
@@ -145,7 +177,6 @@ const styles = StyleSheet.create({
   cardHeader: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FF4500',
     textAlign: 'center',
     marginBottom: 25,
     textTransform: 'uppercase',
@@ -159,31 +190,25 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#FF8C00',
     marginBottom: 5,
     marginLeft: 5
   },
   input: { 
-    backgroundColor: '#F5F5F5', 
     paddingVertical: 15, 
     paddingHorizontal: 20,
     borderRadius: 15, 
     fontSize: 16,
-    color: '#333',
     borderWidth: 2,
-    borderColor: '#EEEEEE'
   },
 
   // --- BUTTON STYLING ---
   loginBtn: { 
-    backgroundColor: '#FF4500', // Bright Orange/Red
     paddingVertical: 18, 
     borderRadius: 50, // Pill Shape
     alignItems: 'center',
     marginTop: 15,
-    // Make the button look 3D
+    // 3D Button Effect
     borderBottomWidth: 6,
-    borderBottomColor: '#C03500', // Darker shade for 3D effect
   },
   loginBtnText: { 
     color: '#FFF', 
@@ -198,11 +223,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signupText: {
-    color: '#666',
     fontSize: 14,
+    fontWeight: '600'
   },
   signupLink: { 
-    color: '#FF8C00', 
-    fontWeight: 'bold',
+    fontWeight: '900',
   }
 });

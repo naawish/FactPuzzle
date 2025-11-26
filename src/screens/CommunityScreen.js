@@ -2,9 +2,11 @@
 import React, { useContext, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, ImageBackground } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
+import { ThemeContext } from '../context/ThemeContext'; // <--- IMPORT THIS
 
 export default function CommunityScreen() {
   const { user } = useContext(AuthContext);
+  const { theme } = useContext(ThemeContext); // <--- USE THEME
 
   const userScore = user?.solved ? user.solved.length : 0;
   const userName = user?.username || "You";
@@ -26,16 +28,42 @@ export default function CommunityScreen() {
 
   const userRank = leaderboard.findIndex(p => p.isUser) + 1;
 
+  // --- DYNAMIC STYLES ---
+  const headerStyle = { color: theme.primary };
+  
+  const statsCardStyle = { 
+    backgroundColor: theme.primary, // Orange (Light) vs Violet (Dark)
+    borderColor: '#FFF', // Keep white border for contrast
+  };
+
+  const rowStyle = { 
+    backgroundColor: theme.card, 
+    borderColor: theme.border, 
+    borderBottomColor: theme.shadow 
+  };
+
+  // Special Highlight for "My Row"
+  const myRowStyle = { 
+    backgroundColor: theme.background === '#0F172A' ? '#334155' : '#FFFBE6', // Dark Slate vs Light Yellow
+    borderColor: theme.primary, 
+    borderBottomColor: theme.shadow 
+  };
+
+  const textStyle = { color: theme.text };
+  const rankBadgeStyle = { backgroundColor: theme.border }; // Matches border color
+  const myBadgeStyle = { backgroundColor: theme.primary };
+
   return (
     <ImageBackground 
       source={require('../../assets/background.png')} 
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.background }]}
+      imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
-      <Text style={styles.header}>LEADERBOARD</Text>
+      <Text style={[styles.header, headerStyle]}>LEADERBOARD</Text>
       
-      {/* 1. Styled Stats Card */}
-      <View style={styles.statsCard}>
+      {/* 1. Styled Stats Card (Dynamic Color) */}
+      <View style={[styles.statsCard, statsCardStyle]}>
         <Text style={styles.statsTitle}>YOUR GLOBAL RANK</Text>
         <Text style={styles.statsValue}>#{userRank}</Text>
         <Text style={styles.statsSub}>Total Solved: {userScore}</Text>
@@ -48,18 +76,23 @@ export default function CommunityScreen() {
         renderItem={({ item, index }) => (
           <View style={[
             styles.rankRow, 
-            item.isUser && styles.myRow 
+            rowStyle,                    // Base Style
+            item.isUser && myRowStyle    // Override if User
           ]}>
             {/* Rank Circle */}
-            <View style={[styles.rankBadge, item.isUser && styles.myBadge]}>
+            <View style={[
+              styles.rankBadge, 
+              rankBadgeStyle,
+              item.isUser && myBadgeStyle
+            ]}>
               <Text style={styles.rankText}>{index + 1}</Text>
             </View>
 
-            <Text style={[styles.name, item.isUser && styles.myText]}>
+            <Text style={[styles.name, textStyle, item.isUser && { color: theme.primary }]}>
               {item.name}
             </Text>
             
-            <Text style={[styles.score, item.isUser && styles.myText]}>
+            <Text style={[styles.score, { color: theme.primary }]}>
               {item.score}
             </Text>
           </View>
@@ -77,10 +110,9 @@ const styles = StyleSheet.create({
   header: { 
     fontSize: 30, 
     fontWeight: '900', 
-    color: '#C71585', 
     marginBottom: 20, 
     textAlign: 'center',
-    textShadowColor: 'white',
+    textShadowColor: 'rgba(255,255,255,0.5)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 0,
     letterSpacing: 1
@@ -88,13 +120,11 @@ const styles = StyleSheet.create({
   
   // --- STATS CARD ---
   statsCard: { 
-    backgroundColor: '#C71585', 
     padding: 20, 
     borderRadius: 20, 
     marginBottom: 20, 
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#FFF',
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },
@@ -109,31 +139,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     padding: 15, 
-    backgroundColor: '#fff', 
     marginBottom: 12, 
     borderRadius: 15, 
     alignItems: 'center', 
-    // Style
+    // Borders
     borderWidth: 2,
-    borderColor: '#E0E0E0',
-    borderBottomWidth: 5, // 3D effect
-    borderBottomColor: '#D0D0D0'
+    borderBottomWidth: 5, 
   },
   
-  myRow: { 
-    backgroundColor: '#FFFBE6', 
-    borderColor: '#FF8C00', 
-    borderBottomColor: '#C06600' // Darker Orange
-  },
-  myText: { 
-    color: '#FF8C00',
-    fontWeight: '900'
-  },
-
-  rankBadge: { width: 30, height: 30, backgroundColor: '#EEE', borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
-  myBadge: { backgroundColor: '#FF8C00' },
-  rankText: { fontWeight: 'bold', color: '#555' },
+  rankBadge: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+  rankText: { fontWeight: 'bold', color: '#FFF' },
   
-  name: { fontSize: 16, fontWeight: 'bold', color: '#555', flex: 1, marginLeft: 15 },
-  score: { fontSize: 18, fontWeight: '900', color: '#C71585' }
+  name: { fontSize: 16, fontWeight: 'bold', flex: 1, marginLeft: 15 },
+  score: { fontSize: 18, fontWeight: '900' }
 });

@@ -16,40 +16,33 @@ export default function ProfileScreen() {
   const [sharingFact, setSharingFact] = useState("Loading...");
   const viewShotRef = useRef();
 
-  // --- DATA PROCESSING: Group by Date & Sort ---
+  // --- DATA PROCESSING ---
   const sections = useMemo(() => {
     const rawData = user?.solved || [];
     const groups = {};
 
     rawData.forEach(item => {
       let factObj = {};
-      let dateLabel = "Previous Collection"; // Default for old data
+      let dateLabel = "Previous Collection";
 
-      // 1. Normalize Data (Handle String vs Object)
       if (typeof item === 'string') {
-        // Old data (No date) -> Assign timestamp 0 to put at bottom
         factObj = { text: item, timestamp: 0 };
       } else {
-        // New data (Has date)
         const d = new Date(item.date);
         factObj = { text: item.text, timestamp: d.getTime() };
         
-        // 2. Determine Group Label
         const today = new Date();
-        // Reset time parts for accurate date comparison
         const dString = d.toDateString();
         const todayString = today.toDateString();
         
         if (dString === todayString) {
           dateLabel = "Today";
         } else {
-          // Check Yesterday
           const yesterday = new Date(today);
           yesterday.setDate(yesterday.getDate() - 1);
           if (dString === yesterday.toDateString()) {
             dateLabel = "Yesterday";
           } else {
-            // Format: "Mon, Nov 26"
             dateLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
           }
         }
@@ -58,11 +51,9 @@ export default function ProfileScreen() {
       if (!groups[dateLabel]) {
         groups[dateLabel] = [];
       }
-      // Add the normalized object to the group
       groups[dateLabel].push(factObj);
     });
 
-    // 3. Sort Section Headers (Keys)
     const sortedKeys = Object.keys(groups).sort((a, b) => {
       if (a === 'Today') return -1; 
       if (b === 'Today') return 1;
@@ -73,14 +64,10 @@ export default function ProfileScreen() {
       return new Date(b) - new Date(a); 
     });
 
-    // 4. Construct SectionList & Sort Items (Newest First)
     return sortedKeys.map(date => {
-      // Sort the array of facts within this date group by timestamp (High to Low)
       const sortedItems = groups[date].sort((a, b) => b.timestamp - a.timestamp);
-      
       return {
         title: date,
-        // Map back to just the text string for the renderer
         data: sortedItems.map(i => i.text) 
       };
     });
@@ -153,7 +140,8 @@ export default function ProfileScreen() {
         sections={sections}
         keyExtractor={(item, index) => item + index}
         contentContainerStyle={{ paddingBottom: 20 }}
-        stickySectionHeadersEnabled={false} 
+        stickySectionHeadersEnabled={false}
+        showsVerticalScrollIndicator={false} // <--- ADDED THIS LINE
         
         renderSectionHeader={({ section: { title } }) => (
           <View style={styles.timelineHeader}>
@@ -165,14 +153,11 @@ export default function ProfileScreen() {
 
         renderItem={({ item, index, section }) => (
           <View style={styles.timelineRow}>
-            
-            {/* Left Side: The Line & Dot */}
             <View style={styles.timelineGuide}>
               <View style={[styles.line, { backgroundColor: theme.border }]} />
               <View style={[styles.dot, { backgroundColor: theme.primary, borderColor: theme.background }]} />
             </View>
 
-            {/* Right Side: The Card */}
             <View style={[styles.card, factCardStyle]}>
               <View style={styles.cardHeader}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
@@ -220,55 +205,16 @@ const styles = StyleSheet.create({
   divider: { alignItems: 'center', marginBottom: 15 },
   dividerText: { color: '#FFF', fontWeight: '900', fontSize: 14, textShadowColor: 'black', textShadowRadius: 2 },
 
-  timelineHeader: {
-    alignItems: 'center',
-    marginBottom: 15,
-    marginTop: 10,
-  },
-  dateBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'white',
-    elevation: 3
-  },
+  timelineHeader: { alignItems: 'center', marginBottom: 15, marginTop: 10 },
+  dateBadge: { paddingVertical: 6, paddingHorizontal: 15, borderRadius: 20, borderWidth: 2, borderColor: 'white', elevation: 3 },
   dateText: { color: 'white', fontWeight: '900', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
 
-  timelineRow: {
-    flexDirection: 'row',
-    marginBottom: 15,
-  },
-  timelineGuide: {
-    width: 30,
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  line: {
-    position: 'absolute',
-    top: -20,
-    bottom: -20,
-    width: 4,
-    borderRadius: 2,
-    opacity: 0.5
-  },
-  dot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 3,
-    marginTop: 25, 
-    zIndex: 1,
-  },
+  timelineRow: { flexDirection: 'row', marginBottom: 15 },
+  timelineGuide: { width: 30, alignItems: 'center', marginRight: 10 },
+  line: { position: 'absolute', top: -20, bottom: -20, width: 4, borderRadius: 2, opacity: 0.5 },
+  dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 3, marginTop: 25, zIndex: 1 },
 
-  card: { 
-    flex: 1,
-    padding: 15, 
-    borderRadius: 15, 
-    borderWidth: 3, 
-    borderBottomWidth: 6,
-    elevation: 5
-  },
+  card: { flex: 1, padding: 15, borderRadius: 15, borderWidth: 3, borderBottomWidth: 6, elevation: 5 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   factNumber: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
   badge: { width: 10, height: 10, borderRadius: 5 },

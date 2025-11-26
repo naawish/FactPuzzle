@@ -2,10 +2,18 @@
   "users": [
     {
       "id": "1764152025530",
-      "username": "Admin",
+      "username": "admin",
       "email": "admin",
       "password": "admin",
       "solved": [
+        {
+          "text": "The largest employer in the world is the Indian railway system in India, employing over 1.6 million people",
+          "date": "2025-11-26T11:43:42.120Z"
+        },
+        {
+          "text": "The hydra, which is related to the jellyfish, can grow its body back in a couple of days if it is cut in half",
+          "date": "2025-11-26T11:40:19.894Z"
+        },
         {
           "text": "In 1894 the first big Coke sign was found on the side of a building located in Cartersville, Georgia, and still exists today",
           "date": "2025-11-26T10:27:25.939Z"

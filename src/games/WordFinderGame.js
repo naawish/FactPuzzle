@@ -70,19 +70,40 @@ export default function WordFinderGame() {
     }
   };
 
+  // --- FIXED SAVE LOGIC ---
+  const saveFact = async () => {
+    if (!user || !user.solved) return;
+
+    // Check if this fact is already saved
+    // We handle both old data (strings) and new data (objects with .text)
+    const isAlreadySolved = user.solved.some(item => {
+      if (typeof item === 'string') return item === fact;
+      return item.text === fact;
+    });
+
+    if (isAlreadySolved) {
+      console.log("Fact already solved, skipping save.");
+      return;
+    }
+    
+    console.log("Saving new fact:", fact);
+    await saveSolvedPuzzle(fact);
+  };
+  // -----------------------
+
   const handleHintPress = async () => {
     if (hintLevel === 0) {
       setHintLevel(1);
     } else if (hintLevel === 1) {
       setDefLoading(true);
       try {
+        console.log("Fetching definition for:", targetWord);
         const res = await axios.get(`https://api.api-ninjas.com/v1/dictionary?word=${targetWord}`, {
           headers: { 'X-Api-Key': FACTS_API_KEY }
         });
         
         if (res.data.definition) {
-          let rawDef = res.data.definition;
-          let cleanDef = rawDef.replace(new RegExp(targetWord, 'gi'), "___");
+          let cleanDef = res.data.definition.replace(new RegExp(targetWord, 'gi'), "___");
           cleanDef = cleanDef.replace(/^\d+\.\s*/, "").trim();
           if (cleanDef.length > 120) cleanDef = cleanDef.substring(0, 120) + "...";
           setDefinition(cleanDef);
@@ -91,6 +112,7 @@ export default function WordFinderGame() {
         }
         setHintLevel(2);
       } catch (error) {
+        console.error(error);
         setDefinition("Could not fetch definition.");
         setHintLevel(2);
       } finally {
@@ -228,15 +250,10 @@ export default function WordFinderGame() {
   useEffect(() => {
     const formedWord = selectedLetters.map(s => s.letter).join('');
     if (formedWord && formedWord === targetWord) {
-      saveFact(); 
-      setSuccessModalVisible(true); 
+      saveFact(); // Save First
+      setSuccessModalVisible(true); // Then Show Modal
     } 
   }, [selectedLetters, targetWord]); 
-
-  const saveFact = async () => {
-    if (user?.solved?.includes(fact)) return;
-    await saveSolvedPuzzle(fact);
-  };
 
   const handleNextPuzzle = () => {
     setSuccessModalVisible(false);
@@ -245,6 +262,7 @@ export default function WordFinderGame() {
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.primary}/></View>;
 
+  // Styles
   const cardStyle = { backgroundColor: theme.card, borderColor: theme.border };
   const hintTextStyle = { color: theme.text };
   const hintLabelStyle = { color: theme.primary };
@@ -320,7 +338,10 @@ export default function WordFinderGame() {
                 isSelected && { backgroundColor: theme.primary } 
               ]} 
             >
-              <Text style={[styles.cellText, isSelected && { color: '#FFF' }]}>{letter}</Text>
+              <Text style={[
+                styles.cellText,
+                isSelected && { color: '#FFF' }
+              ]}>{letter}</Text>
             </View>
           );
         })}

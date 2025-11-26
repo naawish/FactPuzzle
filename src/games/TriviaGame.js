@@ -32,7 +32,10 @@ export default function TriviaGame() {
   const [userAnswer, setUserAnswer] = useState('');
   
   const [loading, setLoading] = useState(true);
-  const [gameStatus, setGameStatus] = useState('playing'); // 'playing', 'won', 'lost'
+  const [gameStatus, setGameStatus] = useState('playing'); 
+  
+  // NEW: State for the Incorrect Popup
+  const [retryModalVisible, setRetryModalVisible] = useState(false);
 
   useEffect(() => {
     fetchTrivia();
@@ -42,6 +45,7 @@ export default function TriviaGame() {
     setLoading(true);
     setGameStatus('playing');
     setUserAnswer('');
+    setRetryModalVisible(false);
     
     try {
       const response = await axios.get('https://api.api-ninjas.com/v1/trivia', {
@@ -74,8 +78,8 @@ export default function TriviaGame() {
       const factString = `Q: ${question}\nA: ${correctAnswer}`;
       saveSolvedPuzzle(factString);
     } else {
-      // Keep the simple alert for retries so flow isn't broken
-      Alert.alert("Incorrect", "That is not the right answer. Try again!");
+      // UPDATED: Show Custom Modal instead of Alert
+      setRetryModalVisible(true);
     }
   };
 
@@ -171,12 +175,35 @@ export default function TriviaGame() {
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
 
-      {/* --- RESULT MODAL (UPDATED STYLING) --- */}
+      {/* --- INCORRECT / RETRY MODAL --- */}
+      <Modal visible={retryModalVisible} transparent={true} animationType="fade" onRequestClose={() => setRetryModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, modalStyle]}>
+            
+            {/* Header: Red/Pink for Danger */}
+            <Text style={[styles.modalTitle, { color: theme.danger }]}>INCORRECT</Text>
+            
+            <View style={styles.modalContent}>
+              <Text style={[styles.answerText, textStyle, { fontSize: 18, lineHeight: 26 }]}>
+                That is not the right answer.
+              </Text>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.nextBtn, btnStyle]} 
+              onPress={() => setRetryModalVisible(false)}
+            >
+              <Text style={[styles.btnText, { color: '#FFF' }]}>TRY AGAIN</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- RESULT MODAL (WIN / LOSS) --- */}
       <Modal visible={gameStatus !== 'playing'} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, modalStyle]}>
             
-            {/* Header: Success Green or Danger Pink/Red */}
             <Text style={[
               styles.modalTitle, 
               { color: gameStatus === 'won' ? theme.success : theme.danger }
@@ -208,36 +235,32 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { flexGrow: 1, padding: 20, alignItems: 'center', justifyContent: 'center' },
 
-  // Badge
   badge: {
     paddingVertical: 6, paddingHorizontal: 15, borderRadius: 20, borderWidth: 2,
     marginBottom: 20
   },
   badgeText: { color: '#FFF', fontWeight: '900', fontSize: 12, letterSpacing: 1 },
 
-  // Card
   card: {
     width: '100%', padding: 25, borderRadius: 20, 
-    borderWidth: 3, borderBottomWidth: 6, // 3D Effect
+    borderWidth: 3, borderBottomWidth: 6, 
     marginBottom: 30, elevation: 5
   },
   label: { fontSize: 12, fontWeight: '900', marginBottom: 10, letterSpacing: 1, textTransform: 'uppercase' },
   questionText: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', lineHeight: 32 },
 
-  // Input
   inputContainer: { width: '100%', marginBottom: 30 },
   input: {
     width: '100%', padding: 15, borderRadius: 15, borderWidth: 2,
     fontSize: 18, fontWeight: '600', textAlign: 'center'
   },
 
-  // Buttons
   btnRow: { flexDirection: 'row', gap: 15, width: '100%' },
   actionBtn: {
     flex: 1, paddingVertical: 15, borderRadius: 50, alignItems: 'center',
     borderWidth: 2, borderColor: 'transparent', borderBottomWidth: 5
   },
-  giveUpBtn: { backgroundColor: '#E0E0E0', borderColor: '#CCC' }, // Grey button for give up
+  giveUpBtn: { backgroundColor: '#E0E0E0', borderColor: '#CCC' }, 
   btnText: { fontWeight: '900', fontSize: 16, letterSpacing: 1 },
 
   // Modal

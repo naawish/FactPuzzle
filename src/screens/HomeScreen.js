@@ -4,12 +4,15 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Pan
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../context/AuthContext';
+import { ThemeContext } from '../context/ThemeContext'; // <--- IMPORT THIS
 
 const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
 const GRID_SIZE = 8; 
 
 export default function HomeScreen() {
   const { user, setUser } = useContext(AuthContext);
+  const { theme } = useContext(ThemeContext); // <--- USE THEME
+
   const [fact, setFact] = useState('');
   const [loading, setLoading] = useState(true);
   const [targetWord, setTargetWord] = useState('');
@@ -162,30 +165,42 @@ export default function HomeScreen() {
     fetchFact();
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#FF8C00"/></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.primary}/></View>;
+
+  // DYNAMIC STYLES
+  const cardStyle = { backgroundColor: theme.card, borderColor: theme.border };
+  const hintTextStyle = { color: theme.text };
+  const hintLabelStyle = { color: theme.primary };
+  const gridStyle = { borderColor: theme.border, backgroundColor: theme.card };
+  
+  // Skip Button Style
+  const skipBtnStyle = { 
+    backgroundColor: theme.danger, 
+    borderColor: theme.danger,
+    borderBottomColor: theme.dangerShadow 
+  };
 
   return (
     <ImageBackground 
       source={require('../../assets/background.png')} 
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.background }]}
+      imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
-      {/* 1. Styled Hint Card */}
-      <View style={styles.card}>
-         <Text style={styles.hintLabel}>Complete the Fact:</Text>
-         <Text style={styles.hintText}>"{hint}"</Text>
+      <View style={[styles.card, cardStyle]}>
+         <Text style={[styles.hintLabel, hintLabelStyle]}>Complete the Fact:</Text>
+         <Text style={[styles.hintText, hintTextStyle]}>"{hint}"</Text>
       </View>
 
-      <View style={styles.clueContainer}>
-        <Text style={styles.clueText}>
+      <View style={[styles.clueContainer, { borderColor: theme.danger }]}>
+        <Text style={[styles.clueText, { color: theme.danger }]}>
           Length: {targetWord.length} 
           {showFirstLetter ? ` | Starts: ${targetWord[0]}` : ''}
         </Text>
       </View>
       
-      {/* 2. Grid with Thick Border */}
       <View 
-        style={styles.gridContainer}
+        style={[styles.gridContainer, gridStyle]}
         ref={gridViewRef}
         {...panResponder.panHandlers} 
         onLayout={() => {
@@ -199,21 +214,30 @@ export default function HomeScreen() {
           return (
             <View 
               key={index} 
-              style={[styles.cell, isSelected && styles.cellSelected]} 
+              style={[
+                styles.cell, 
+                // Grid Lines Color (lighter in dark mode)
+                { borderColor: theme.background === '#0F172A' ? '#334155' : '#eee' }, 
+                isSelected && { backgroundColor: theme.primary } // Purple selection
+              ]} 
             >
-              <Text style={styles.cellText}>{letter}</Text>
+              <Text style={[
+                styles.cellText,
+                // Text color changes on selection
+                isSelected && { color: '#FFF' }
+              ]}>{letter}</Text>
             </View>
           );
         })}
       </View>
 
-      {/* 3. 3D Buttons */}
       <View style={styles.footer}>
         <TouchableOpacity style={[styles.gameBtn, styles.hintBtn]} onPress={() => setShowFirstLetter(true)}>
           <Text style={styles.btnText}>HINT</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.gameBtn, styles.skipBtn]} onPress={fetchFact}>
+        {/* Dynamic Skip Button */}
+        <TouchableOpacity style={[styles.gameBtn, skipBtnStyle]} onPress={fetchFact}>
           <Text style={styles.btnText}>SKIP</Text>
         </TouchableOpacity>
       </View>
@@ -222,88 +246,34 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 20, 
-    alignItems: 'center', 
-    justifyContent: 'center' 
-  },
+  container: { flex: 1, padding: 20, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
-  // --- CARD STYLING ---
   card: { 
-    marginBottom: 15, 
-    padding: 20, 
-    backgroundColor: '#FFF', 
-    borderRadius: 20, 
-    width: '100%', 
-    // Thick Border
-    borderWidth: 3,
-    borderColor: '#FF8C00',
-    // Shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5
+    marginBottom: 15, padding: 20, borderRadius: 20, width: '100%', 
+    borderWidth: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.2, shadowRadius: 5, elevation: 5
   },
-  hintLabel: { fontSize: 12, color: '#FF8C00', fontWeight: 'bold', marginBottom: 5, textTransform: 'uppercase' },
-  hintText: { fontSize: 18, color: '#333', fontStyle: 'italic', textAlign: 'center', lineHeight: 24, fontWeight: '500' },
+  hintLabel: { fontSize: 12, fontWeight: 'bold', marginBottom: 5, textTransform: 'uppercase' },
+  hintText: { fontSize: 18, fontStyle: 'italic', textAlign: 'center', lineHeight: 24, fontWeight: '500' },
   
   clueContainer: { 
-    backgroundColor: 'rgba(255,255,255,0.9)', 
-    paddingVertical: 5, 
-    paddingHorizontal: 15, 
-    borderRadius: 15, 
-    marginBottom: 15,
-    borderWidth: 2,
-    borderColor: '#FF4500'
+    backgroundColor: 'rgba(255,255,255,0.9)', paddingVertical: 5, paddingHorizontal: 15, 
+    borderRadius: 15, marginBottom: 15, borderWidth: 2
   },
-  clueText: { fontSize: 16, color: '#FF4500', fontWeight: 'bold' },
+  clueText: { fontSize: 16, fontWeight: 'bold' },
   
   gridContainer: { 
-    width: '100%',             
-    aspectRatio: 1,            
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    backgroundColor: '#fff', 
-    borderColor: '#FF8C00', 
-    borderWidth: 4, // Thicker border for board
-    borderRadius: 10,
-    overflow: 'hidden',        
+    width: '100%', aspectRatio: 1, flexDirection: 'row', flexWrap: 'wrap', 
+    borderWidth: 4, borderRadius: 10, overflow: 'hidden',        
   },
   
-  cell: { 
-    width: '12.5%',            
-    height: '12.5%',           
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    borderWidth: 0.5, 
-    borderColor: '#eee' 
-  },
-  
-  cellSelected: { backgroundColor: '#FFD700' }, // Gold color for selection
+  cell: { width: '12.5%', height: '12.5%', justifyContent: 'center', alignItems: 'center', borderWidth: 0.5 },
   cellText: { fontSize: 20, fontWeight: 'bold', color: '#333' },
   
   footer: { marginTop: 25, flexDirection: 'row', gap: 20 },
+  gameBtn: { paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, alignItems: 'center', borderBottomWidth: 5 },
   
-  // --- 3D BUTTON STYLES ---
-  gameBtn: {
-    paddingVertical: 12, 
-    paddingHorizontal: 30, 
-    borderRadius: 25,
-    alignItems: 'center',
-    borderBottomWidth: 5, // 3D Effect
-  },
-  hintBtn: {
-    backgroundColor: '#4682B4', 
-    borderColor: '#4682B4',
-    borderBottomColor: '#2F5D85',
-  },
-  skipBtn: {
-    backgroundColor: '#FF4500', 
-    borderColor: '#FF4500',
-    borderBottomColor: '#C03500',
-  },
+  hintBtn: { backgroundColor: '#4682B4', borderColor: '#4682B4', borderBottomColor: '#2F5D85' },
   btnText: { color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: 1 }
 });

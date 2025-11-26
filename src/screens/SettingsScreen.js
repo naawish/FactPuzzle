@@ -7,10 +7,16 @@ import { ThemeContext } from '../context/ThemeContext';
 export default function SettingsScreen() {
   const { user, logout, updateProfile, changePassword } = useContext(AuthContext);
   
-  // Access the new Theme Palette
-  const { theme, useSystemTheme, toggleSystemTheme, isDarkMode, toggleDarkMode } = useContext(ThemeContext);
+  // Access Theme Data
+  const { 
+    theme, 
+    useSystemTheme, 
+    toggleSystemTheme, 
+    isDarkMode, 
+    toggleDarkMode 
+  } = useContext(ThemeContext);
 
-  // States
+  // --- States ---
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
@@ -22,7 +28,7 @@ export default function SettingsScreen() {
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
 
-  // --- Handlers (Same as before) ---
+  // --- Handlers ---
   const openProfileModal = () => {
     setEditName(user?.username || '');
     setEditEmail(user?.email || '');
@@ -59,7 +65,6 @@ export default function SettingsScreen() {
   };
 
   // --- DYNAMIC STYLES ---
-  // These use the Context variables to switch colors automatically
   const cardStyle = { 
     backgroundColor: theme.card,
     borderColor: theme.border,
@@ -68,18 +73,26 @@ export default function SettingsScreen() {
   const textStyle = { color: theme.text };
   const subTextStyle = { color: theme.subText };
   const headerStyle = { color: theme.primary };
+  
+  // Input background changes based on Dark Mode
   const inputStyle = { 
     backgroundColor: theme.background === '#0F172A' ? '#334155' : '#F5F5F5', 
     color: theme.text,
     borderColor: theme.border
   };
 
+  // Logout Button Style (Uses Danger Color)
+  const logoutBtnStyle = { 
+    backgroundColor: theme.danger, 
+    borderColor: theme.danger,
+    borderBottomColor: theme.dangerShadow 
+  };
+
   return (
     <ImageBackground 
-      // Note: You might want a separate dark background image in the future!
       source={require('../../assets/background.png')} 
       style={[styles.container, { backgroundColor: theme.background }]} 
-      imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }} // Fade image in dark mode
+      imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }} 
       resizeMode="cover"
     >
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
@@ -143,25 +156,39 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          {/* --- LOGOUT --- */}
-          <TouchableOpacity style={styles.logoutBtn} onPress={() => setLogoutModalVisible(true)}>
+          {/* --- ALERTS CARD --- */}
+          <View style={[styles.gameCard, cardStyle]}>
+            <Text style={[styles.cardHeader, headerStyle]}>ALERTS</Text>
+            <View style={styles.row}>
+              <Text style={[styles.label, textStyle]}>PUSH NOTIFICATIONS</Text>
+              <Switch 
+                value={notifications} 
+                onValueChange={setNotifications}
+                trackColor={{ false: "#767577", true: theme.primary }}
+              />
+            </View>
+          </View>
+
+          {/* --- LOGOUT BUTTON --- */}
+          <TouchableOpacity style={[styles.logoutBtn, logoutBtnStyle]} onPress={() => setLogoutModalVisible(true)}>
             <Text style={styles.logoutText}>LOG OUT</Text>
           </TouchableOpacity>
 
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* --- MODAL REUSE STYLES --- */}
-      {/* (We apply cardStyle to modals to match the theme) */}
-
+      {/* --- MODAL: EDIT PROFILE --- */}
       <Modal visible={profileModalVisible} transparent={true} animationType="fade" onRequestClose={() => setProfileModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, cardStyle]}>
             <Text style={[styles.modalTitle, headerStyle]}>EDIT PROFILE</Text>
+            
             <Text style={[styles.inputLabel, textStyle]}>USERNAME</Text>
             <TextInput style={[styles.input, inputStyle]} value={editName} onChangeText={setEditName} placeholderTextColor="#999"/>
+
             <Text style={[styles.inputLabel, textStyle]}>EMAIL</Text>
             <TextInput style={[styles.input, inputStyle]} value={editEmail} onChangeText={setEditEmail} autoCapitalize="none" placeholderTextColor="#999"/>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setProfileModalVisible(false)}>
                 <Text style={styles.cancelText}>CANCEL</Text>
@@ -174,14 +201,18 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
+      {/* --- MODAL: CHANGE PASSWORD --- */}
       <Modal visible={passwordModalVisible} transparent={true} animationType="fade" onRequestClose={() => setPasswordModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, cardStyle]}>
             <Text style={[styles.modalTitle, headerStyle]}>CHANGE PASSWORD</Text>
+            
             <Text style={[styles.inputLabel, textStyle]}>CURRENT PASSWORD</Text>
             <TextInput style={[styles.input, inputStyle]} value={currentPass} onChangeText={setCurrentPass} secureTextEntry placeholderTextColor="#999"/>
+
             <Text style={[styles.inputLabel, textStyle]}>NEW PASSWORD</Text>
             <TextInput style={[styles.input, inputStyle]} value={newPass} onChangeText={setNewPass} secureTextEntry placeholderTextColor="#999"/>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setPasswordModalVisible(false)}>
                 <Text style={styles.cancelText}>CANCEL</Text>
@@ -194,6 +225,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
+      {/* --- MODAL: LOGOUT --- */}
       <Modal visible={logoutModalVisible} transparent={true} animationType="fade" onRequestClose={() => setLogoutModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, cardStyle]}>
@@ -203,7 +235,12 @@ export default function SettingsScreen() {
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setLogoutModalVisible(false)}>
                 <Text style={styles.cancelText}>STAY</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.logoutActionBtn]} onPress={confirmLogout}>
+              
+              {/* Uses Danger Color */}
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.logoutActionBtn, { backgroundColor: theme.danger, borderBottomColor: theme.dangerShadow }]} 
+                onPress={confirmLogout}
+              >
                 <Text style={styles.confirmText}>LEAVE</Text>
               </TouchableOpacity>
             </View>
@@ -219,7 +256,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20 },
   
-  // Game Card structure (Colors are dynamic now)
+  // Game Card structure (Colors are dynamic via style prop)
   gameCard: {
     marginBottom: 20,
     borderRadius: 20,
@@ -253,16 +290,14 @@ const styles = StyleSheet.create({
   actionBtnText: { fontWeight: 'bold', color: '#555', fontSize: 12 },
 
   logoutBtn: { 
-    backgroundColor: '#FF4500', 
+    // Background color removed here as it is dynamic now
     paddingVertical: 15, 
     borderRadius: 50, 
     alignItems: 'center',
     marginBottom: 30, 
     marginTop: 10,
     borderWidth: 2,
-    borderColor: '#FF4500',
     borderBottomWidth: 6,
-    borderBottomColor: '#C03500'
   },
   logoutText: { color: 'white', fontWeight: '900', fontSize: 18, letterSpacing: 1 },
 
@@ -292,8 +327,8 @@ const styles = StyleSheet.create({
   modalBtn: { flex: 1, paddingVertical: 12, borderRadius: 15, alignItems: 'center', borderBottomWidth: 4 },
   
   cancelBtn: { backgroundColor: '#E0E0E0', borderBottomColor: '#999' },
-  confirmBtn: { /* Dynamic Color */ }, 
-  logoutActionBtn: { backgroundColor: '#FF4500', borderBottomColor: '#C03500' },
+  confirmBtn: { /* Dynamic */ }, 
+  logoutActionBtn: { /* Dynamic */ },
   
   cancelText: { color: '#333', fontWeight: '900' },
   confirmText: { color: 'white', fontWeight: '900' }

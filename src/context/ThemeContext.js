@@ -37,27 +37,27 @@ export const ThemeProvider = ({ children }) => {
 
   const isDark = useSystemTheme ? systemScheme === 'dark' : isDarkMode;
 
-  // --- DEFINING THE COLOR SCHEMES ---
   const theme = {
-    // 1. Backgrounds
-    background: isDark ? '#0F172A' : '#F5F5F5', // Deep Space Blue vs Light Grey
-    card:       isDark ? '#1E293B' : '#FFFFFF', // Slate Blue vs White
+    // Backgrounds
+    background: isDark ? '#0F172A' : '#F5F5F5',
+    card:       isDark ? '#1E293B' : '#FFFFFF',
     
-    // 2. Text
-    text:       isDark ? '#E2E8F0' : '#333333', // Light Blue-Grey vs Dark Grey
+    // Text
+    text:       isDark ? '#E2E8F0' : '#333333',
     subText:    isDark ? '#94A3B8' : '#666666',
     
-    // 3. Branding (The Main Change)
-    // Light = Orange, Dark = Neon Violet
-    primary:    isDark ? '#8B5CF6' : '#FF8C00', 
+    // Branding
+    primary:    isDark ? '#8B5CF6' : '#FF8C00', // Violet vs Orange
     
-    // 4. UI Elements (Borders & Shadows)
-    border:     isDark ? '#7C3AED' : '#FF8C00', // Darker Violet vs Orange
-    shadow:     isDark ? '#5B21B6' : '#C06600', // Deep Violet Shadow vs Dark Orange Shadow
+    // UI Elements
+    border:     isDark ? '#7C3AED' : '#FF8C00',
+    shadow:     isDark ? '#5B21B6' : '#C06600',
     
-    // 5. Success/Action Colors
+    // Action Colors
     success:    '#32CD32',
-    danger:     '#FF4500'
+    // Danger: Hot Pink (Dark) vs Red-Orange (Light)
+    danger:     isDark ? '#D946EF' : '#FF4500', 
+    dangerShadow: isDark ? '#A21CAF' : '#C03500'
   };
 
   return (

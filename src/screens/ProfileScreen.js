@@ -1,31 +1,61 @@
 // src/screens/ProfileScreen.js
-import React, { useContext } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
+import React, { useContext, useState, useRef } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ImageBackground, Image, Alert } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+
+// --- NEW IMPORTS FOR SHARING ---
+import ViewShot from "react-native-view-shot";
+import * as Sharing from 'expo-sharing';
 
 export default function ProfileScreen() {
   const { user } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext);
+  const { theme, isDark } = useContext(ThemeContext);
   const navigation = useNavigation(); 
 
-  // --- DYNAMIC STYLES ---
+  // State to track which fact we are currently preparing to share
+  const [sharingFact, setSharingFact] = useState("Loading...");
   
-  // 1. Player Header Card
+  // Ref to capture the hidden card
+  const viewShotRef = useRef();
+
+  // --- SHARE FUNCTION ---
+  const handleShare = async (factText) => {
+    // 1. Set the text in the hidden card
+    setSharingFact(factText);
+
+    // 2. Wait a tiny bit for React to render the new text into the hidden view
+    setTimeout(async () => {
+      try {
+        // 3. Capture the hidden view as an image
+        const uri = await viewShotRef.current.capture();
+        
+        // 4. Share it
+        if (!(await Sharing.isAvailableAsync())) {
+          Alert.alert("Error", "Sharing is not available on this device");
+          return;
+        }
+        await Sharing.shareAsync(uri);
+      } catch (error) {
+        console.error("Snapshot failed", error);
+        Alert.alert("Error", "Could not generate share image.");
+      }
+    }, 100); // 100ms delay ensures text is updated
+  };
+
+  // Dynamic Styles
   const playerCardStyle = { 
     backgroundColor: theme.card, 
     borderColor: theme.primary, 
     borderBottomColor: theme.shadow 
   };
-
-  // 2. Solved Puzzle Card (The requested update)
   const factCardStyle = { 
     backgroundColor: theme.card, 
     borderColor: theme.border,  
-    borderBottomColor: theme.shadow // 3D Shadow effect
+    borderBottomColor: theme.shadow 
   };
-
   const textStyle = { color: theme.text };
   const subTextStyle = { color: theme.subText };
 
@@ -36,6 +66,44 @@ export default function ProfileScreen() {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
+      
+      {/* --- HIDDEN SHARE TEMPLATE --- */}
+      {/* This view is positioned absolute off-screen (-1000px). 
+          It is what gets turned into an image. */}
+      <View style={{ position: 'absolute', left: -1000, top: 0 }}>
+        <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1.0 }}>
+          <View style={[styles.shareTemplate, { backgroundColor: theme.background, borderColor: theme.primary }]}>
+            
+            {/* Branding Header */}
+            <View style={styles.shareHeader}>
+              <Image 
+                source={require('../../assets/app-icon.png')} 
+                style={styles.shareIcon} 
+              />
+              <Image 
+                source={isDark ? require('../../assets/Title-Dark.png') : require('../../assets/Title-Light.png')} 
+                style={styles.shareTitleImg} 
+              />
+            </View>
+
+            {/* The Fact Content */}
+            <View style={[styles.shareContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={[styles.shareText, { color: theme.text }]}>
+                "{sharingFact}"
+              </Text>
+            </View>
+
+            {/* Footer */}
+            <Text style={[styles.shareFooter, { color: theme.primary }]}>
+              Play Fact Puzzle & Learn Something New!
+            </Text>
+
+          </View>
+        </ViewShot>
+      </View>
+      {/* ----------------------------- */}
+
+
       {/* Player Header */}
       <View style={[styles.playerCard, playerCardStyle]}>
         <View>
@@ -62,14 +130,20 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingBottom: 20 }}
         renderItem={({ item, index }) => (
           
-          // --- UPDATED SOLVED CARD ---
+          // Fact Card
           <View style={[styles.card, factCardStyle]}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.factNumber, { color: theme.primary }]}>FACT #{index + 1}</Text>
-              
-              {/* Success Badge (Green) */}
-              <View style={[styles.badge, { backgroundColor: theme.success }]} />
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
+                <Text style={[styles.factNumber, { color: theme.primary }]}>FACT #{index + 1}</Text>
+                <View style={[styles.badge, { backgroundColor: theme.success }]} />
+              </View>
+
+              {/* Share Button */}
+              <TouchableOpacity onPress={() => handleShare(item)}>
+                <Ionicons name="share-social" size={24} color={theme.subText} />
+              </TouchableOpacity>
             </View>
+            
             <Text style={[styles.factText, textStyle]}>{item}</Text>
           </View>
 
@@ -107,12 +181,11 @@ const styles = StyleSheet.create({
   divider: { alignItems: 'center', marginBottom: 15 },
   dividerText: { color: '#FFF', fontWeight: '900', fontSize: 14, textShadowColor: 'black', textShadowRadius: 2 },
 
-  // Fact Card (General Structure)
+  // Fact Card
   card: { 
     padding: 20, 
     borderRadius: 15, 
     marginBottom: 15, 
-    // 3D Borders handled by dynamic styles
     borderWidth: 3, 
     borderBottomWidth: 6,
     elevation: 5
@@ -122,11 +195,58 @@ const styles = StyleSheet.create({
   badge: { width: 12, height: 12, borderRadius: 6 },
   factText: { fontSize: 16, lineHeight: 24, fontWeight: '500' },
   
-  // Empty State
   emptyContainer: { 
     padding: 30, borderRadius: 20, alignItems: 'center', 
     borderWidth: 2, borderStyle: 'dashed' 
   },
   emptyText: { fontSize: 18, fontWeight: 'bold' },
-  emptySub: { fontSize: 14, marginTop: 5 }
+  emptySub: { fontSize: 14, marginTop: 5 },
+
+  // --- SHARE TEMPLATE STYLES ---
+  // This styles the image that gets generated
+  shareTemplate: {
+    width: 400, // Fixed width for the image
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 10, // Thick frame for the image
+  },
+  shareHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 15
+  },
+  shareIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 15,
+  },
+  shareTitleImg: {
+    width: 180,
+    height: 50,
+    resizeMode: 'contain'
+  },
+  shareContent: {
+    width: '100%',
+    padding: 30,
+    borderRadius: 20,
+    borderWidth: 4,
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 150, // Ensure it looks substantial
+  },
+  shareText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 32,
+    fontStyle: 'italic'
+  },
+  shareFooter: {
+    fontSize: 16,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 1
+  }
 });

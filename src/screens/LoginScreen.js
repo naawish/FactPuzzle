@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   titleImage: {
     width: 280,    
-    height: 80,    
+    height: 130,    
     resizeMode: 'contain',
   },
 

@@ -2,25 +2,30 @@
 import React, { useContext } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-import { ThemeContext } from '../context/ThemeContext'; // <--- IMPORT THIS
+import { ThemeContext } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function ProfileScreen() {
   const { user } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext); // <--- USE THEME
+  const { theme } = useContext(ThemeContext);
   const navigation = useNavigation(); 
 
-  // Dynamic Styles
+  // --- DYNAMIC STYLES ---
+  
+  // 1. Player Header Card
   const playerCardStyle = { 
     backgroundColor: theme.card, 
     borderColor: theme.primary, 
     borderBottomColor: theme.shadow 
   };
+
+  // 2. Solved Puzzle Card (The requested update)
   const factCardStyle = { 
     backgroundColor: theme.card, 
-    borderColor: theme.border,  // <--- DYNAMIC BORDER
-    borderBottomColor: theme.shadow 
+    borderColor: theme.border,  
+    borderBottomColor: theme.shadow // 3D Shadow effect
   };
+
   const textStyle = { color: theme.text };
   const subTextStyle = { color: theme.subText };
 
@@ -31,7 +36,7 @@ export default function ProfileScreen() {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
-      {/* Player Card */}
+      {/* Player Header */}
       <View style={[styles.playerCard, playerCardStyle]}>
         <View>
           <Text style={[styles.greeting, { color: theme.primary }]}>PLAYER PROFILE</Text>
@@ -56,19 +61,23 @@ export default function ProfileScreen() {
         keyExtractor={(item, index) => index.toString()}
         contentContainerStyle={{ paddingBottom: 20 }}
         renderItem={({ item, index }) => (
-          // Fact Card
+          
+          // --- UPDATED SOLVED CARD ---
           <View style={[styles.card, factCardStyle]}>
             <View style={styles.cardHeader}>
               <Text style={[styles.factNumber, { color: theme.primary }]}>FACT #{index + 1}</Text>
-              <View style={styles.badge} />
+              
+              {/* Success Badge (Green) */}
+              <View style={[styles.badge, { backgroundColor: theme.success }]} />
             </View>
             <Text style={[styles.factText, textStyle]}>{item}</Text>
           </View>
+
         )}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No facts collected yet.</Text>
-            <Text style={styles.emptySub}>Play the daily puzzle to fill this book!</Text>
+          <View style={[styles.emptyContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.emptyText, textStyle]}>No facts collected yet.</Text>
+            <Text style={[styles.emptySub, subTextStyle]}>Play the daily puzzle to fill this book!</Text>
           </View>
         }
       />
@@ -79,9 +88,11 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   
+  // Header Card
   playerCard: { 
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
-    marginBottom: 20, padding: 20, borderRadius: 20, borderWidth: 3, borderBottomWidth: 6
+    marginBottom: 20, padding: 20, borderRadius: 20, 
+    borderWidth: 3, borderBottomWidth: 6
   },
   greeting: { fontSize: 12, fontWeight: 'bold', marginBottom: 2 },
   username: { fontSize: 26, fontWeight: '900', textTransform: 'uppercase' },
@@ -96,15 +107,26 @@ const styles = StyleSheet.create({
   divider: { alignItems: 'center', marginBottom: 15 },
   dividerText: { color: '#FFF', fontWeight: '900', fontSize: 14, textShadowColor: 'black', textShadowRadius: 2 },
 
+  // Fact Card (General Structure)
   card: { 
-    padding: 20, borderRadius: 15, marginBottom: 15, borderWidth: 2, borderBottomWidth: 5
+    padding: 20, 
+    borderRadius: 15, 
+    marginBottom: 15, 
+    // 3D Borders handled by dynamic styles
+    borderWidth: 3, 
+    borderBottomWidth: 6,
+    elevation: 5
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  factNumber: { fontSize: 12, fontWeight: '900' },
-  badge: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#32CD32' },
+  factNumber: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+  badge: { width: 12, height: 12, borderRadius: 6 },
   factText: { fontSize: 16, lineHeight: 24, fontWeight: '500' },
   
-  emptyContainer: { backgroundColor: 'rgba(255,255,255,0.9)', padding: 30, borderRadius: 20, alignItems: 'center' },
-  emptyText: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  emptySub: { fontSize: 14, color: '#666', marginTop: 5 }
+  // Empty State
+  emptyContainer: { 
+    padding: 30, borderRadius: 20, alignItems: 'center', 
+    borderWidth: 2, borderStyle: 'dashed' 
+  },
+  emptyText: { fontSize: 18, fontWeight: 'bold' },
+  emptySub: { fontSize: 14, marginTop: 5 }
 });

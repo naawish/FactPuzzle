@@ -1,17 +1,17 @@
 // src/screens/HomeScreen.js
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, PanResponder, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, PanResponder, ImageBackground } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../context/AuthContext';
-import { ThemeContext } from '../context/ThemeContext'; // <--- IMPORT THIS
+import { ThemeContext } from '../context/ThemeContext'; 
 
 const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR';
 const GRID_SIZE = 8; 
 
 export default function HomeScreen() {
   const { user, setUser } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext); // <--- USE THEME
+  const { theme } = useContext(ThemeContext); 
 
   const [fact, setFact] = useState('');
   const [loading, setLoading] = useState(true);
@@ -20,11 +20,15 @@ export default function HomeScreen() {
   const [grid, setGrid] = useState([]);
   const [selectedLetters, setSelectedLetters] = useState([]);
   const [showFirstLetter, setShowFirstLetter] = useState(false);
+  
+  // NEW: State for the Success Popup
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   // Refs
   const gridRef = useRef([]); 
   const targetWordRef = useRef(''); 
   const selectionRef = useRef([]);  
+  const selectionOriginRef = useRef(null); 
   const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0, pageX: 0, pageY: 0 });
   const gridViewRef = useRef(null);
   const clearTimerRef = useRef(null);
@@ -43,6 +47,7 @@ export default function HomeScreen() {
 
   const fetchFact = async () => {
     setLoading(true);
+    setSuccessModalVisible(false); // Hide modal when fetching new
     setSelectedLetters([]);
     selectionRef.current = []; 
     setShowFirstLetter(false);
@@ -54,7 +59,6 @@ export default function HomeScreen() {
       setFact(factText);
       generatePuzzle(factText);
     } catch (error) {
-      Alert.alert('Error', 'Could not fetch fact.');
       setLoading(false);
     }
   };
@@ -86,7 +90,36 @@ export default function HomeScreen() {
     setLoading(false);
   };
 
-  // Gesture Logic
+  // --- MATH HELPER: Calculate Straight Line ---
+  const getLineBetween = (startIdx, endIdx) => {
+    const startRow = Math.floor(startIdx / GRID_SIZE);
+    const startCol = startIdx % GRID_SIZE;
+    const endRow = Math.floor(endIdx / GRID_SIZE);
+    const endCol = endIdx % GRID_SIZE;
+
+    const diffRow = endRow - startRow;
+    const diffCol = endCol - startCol;
+
+    const isHorizontal = diffRow === 0;
+    const isVertical = diffCol === 0;
+    const isDiagonal = Math.abs(diffRow) === Math.abs(diffCol);
+
+    if (!isHorizontal && !isVertical && !isDiagonal) return null; 
+
+    const steps = Math.max(Math.abs(diffRow), Math.abs(diffCol));
+    const stepRow = steps === 0 ? 0 : diffRow / steps;
+    const stepCol = steps === 0 ? 0 : diffCol / steps;
+
+    const lineIndices = [];
+    for (let i = 0; i <= steps; i++) {
+      const r = startRow + (stepRow * i);
+      const c = startCol + (stepCol * i);
+      lineIndices.push(r * GRID_SIZE + c);
+    }
+    return lineIndices;
+  };
+
+  // --- GESTURE LOGIC ---
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -104,6 +137,8 @@ export default function HomeScreen() {
       onPanResponderRelease: () => {
         const currentWord = selectionRef.current.map(s => s.letter).join('');
         const correctWord = targetWordRef.current;
+        selectionOriginRef.current = null;
+
         if (currentWord !== correctWord) {
           clearTimerRef.current = setTimeout(() => {
             setSelectedLetters([]);
@@ -117,6 +152,7 @@ export default function HomeScreen() {
   const handlePan = (pageX, pageY, isStart) => {
     const layout = layoutRef.current;
     if (!layout.width) return; 
+
     const relativeX = pageX - layout.pageX;
     const relativeY = pageY - layout.pageY;
     if (relativeX < 0 || relativeY < 0 || relativeX > layout.width || relativeY > layout.height) return;
@@ -131,37 +167,51 @@ export default function HomeScreen() {
     }
   };
 
-  const updateSelection = (index, isStart) => {
-    const currentGrid = gridRef.current; 
-    const letter = currentGrid[index];
+  const updateSelection = (currentIndex, isStart) => {
+    const currentGrid = gridRef.current;
     if (isStart) {
-      const newSel = [{ index, letter }];
-      selectionRef.current = newSel; 
-      setSelectedLetters(newSel);    
+      selectionOriginRef.current = currentIndex; 
+      const newSel = [{ index: currentIndex, letter: currentGrid[currentIndex] }];
+      selectionRef.current = newSel;
+      setSelectedLetters(newSel);
       return;
     }
-    const prev = selectionRef.current;
-    const alreadySelected = prev.find(item => item.index === index);
-    if (!alreadySelected) {
-      const newSel = [...prev, { index, letter }];
-      selectionRef.current = newSel; 
-      setSelectedLetters(newSel);    
-    }
+
+    const originIndex = selectionOriginRef.current;
+    if (originIndex === null) return;
+    const lineIndices = getLineBetween(originIndex, currentIndex);
+
+    if (lineIndices) {
+      const newSel = lineIndices.map(idx => ({
+        index: idx,
+        letter: currentGrid[idx]
+      }));
+      selectionRef.current = newSel;
+      setSelectedLetters(newSel);
+    } 
   };
 
+  // Win Check
   useEffect(() => {
     const formedWord = selectedLetters.map(s => s.letter).join('');
+    // Trigger Success Modal instead of Alert
     if (formedWord && formedWord === targetWord) {
-      Alert.alert("SUCCESS!", `The fact was:\n\n"${fact}"`, [
-        { text: "Next Puzzle", onPress: saveFactAndReset }
-      ]);
+      saveFact(); // Save data silently
+      setSuccessModalVisible(true); // Show custom modal
     } 
-  }, [selectedLetters, targetWord, fact]); 
+  }, [selectedLetters, targetWord]); 
 
-  const saveFactAndReset = async () => {
+  const saveFact = async () => {
+    // Prevent duplicate saves if effect runs twice
+    if (user.solved && user.solved.includes(fact)) return;
     const updatedUser = { ...user, solved: [...(user.solved || []), fact] };
     setUser(updatedUser);
     await AsyncStorage.setItem('userProfile', JSON.stringify(updatedUser));
+  };
+
+  // Handle "Next Puzzle" click
+  const handleNextPuzzle = () => {
+    setSuccessModalVisible(false);
     fetchFact();
   };
 
@@ -172,13 +222,12 @@ export default function HomeScreen() {
   const hintTextStyle = { color: theme.text };
   const hintLabelStyle = { color: theme.primary };
   const gridStyle = { borderColor: theme.border, backgroundColor: theme.card };
+  const skipBtnStyle = { backgroundColor: theme.danger, borderColor: theme.danger, borderBottomColor: theme.dangerShadow };
   
-  // Skip Button Style
-  const skipBtnStyle = { 
-    backgroundColor: theme.danger, 
-    borderColor: theme.danger,
-    borderBottomColor: theme.dangerShadow 
-  };
+  // Modal Styles
+  const modalStyle = { backgroundColor: theme.card, borderColor: theme.border, borderBottomColor: theme.shadow };
+  const modalTextStyle = { color: theme.text };
+  const primaryBtnStyle = { backgroundColor: theme.primary, borderBottomColor: theme.shadow };
 
   return (
     <ImageBackground 
@@ -216,14 +265,12 @@ export default function HomeScreen() {
               key={index} 
               style={[
                 styles.cell, 
-                // Grid Lines Color (lighter in dark mode)
                 { borderColor: theme.background === '#0F172A' ? '#334155' : '#eee' }, 
-                isSelected && { backgroundColor: theme.primary } // Purple selection
+                isSelected && { backgroundColor: theme.primary } 
               ]} 
             >
               <Text style={[
                 styles.cellText,
-                // Text color changes on selection
                 isSelected && { color: '#FFF' }
               ]}>{letter}</Text>
             </View>
@@ -236,11 +283,37 @@ export default function HomeScreen() {
           <Text style={styles.btnText}>HINT</Text>
         </TouchableOpacity>
 
-        {/* Dynamic Skip Button */}
         <TouchableOpacity style={[styles.gameBtn, skipBtnStyle]} onPress={fetchFact}>
           <Text style={styles.btnText}>SKIP</Text>
         </TouchableOpacity>
       </View>
+
+      {/* --- SUCCESS MODAL --- */}
+      <Modal 
+        visible={successModalVisible} 
+        transparent={true} 
+        animationType="slide"
+        onRequestClose={handleNextPuzzle}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, modalStyle]}>
+            <Text style={[styles.modalTitle, { color: theme.primary }]}>PUZZLE SOLVED!</Text>
+            
+            <View style={styles.modalContent}>
+              <Text style={[styles.factLabel, { color: theme.subText }]}>DID YOU KNOW?</Text>
+              <Text style={[styles.fullFactText, modalTextStyle]}>"{fact}"</Text>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.nextBtn, primaryBtnStyle]} 
+              onPress={handleNextPuzzle}
+            >
+              <Text style={styles.nextBtnText}>NEXT PUZZLE</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </ImageBackground>
   );
 }
@@ -273,7 +346,24 @@ const styles = StyleSheet.create({
   
   footer: { marginTop: 25, flexDirection: 'row', gap: 20 },
   gameBtn: { paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, alignItems: 'center', borderBottomWidth: 5 },
-  
   hintBtn: { backgroundColor: '#4682B4', borderColor: '#4682B4', borderBottomColor: '#2F5D85' },
-  btnText: { color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: 1 }
+  btnText: { color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: 1 },
+
+  // --- MODAL STYLES ---
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  modalCard: { 
+    width: '85%', borderRadius: 30, padding: 25, alignItems: 'center', 
+    borderWidth: 4, borderBottomWidth: 8, elevation: 20 
+  },
+  modalTitle: { fontSize: 28, fontWeight: '900', marginBottom: 15, letterSpacing: 1, textAlign: 'center' },
+  
+  modalContent: { marginBottom: 25, alignItems: 'center' },
+  factLabel: { fontSize: 12, fontWeight: 'bold', marginBottom: 5, letterSpacing: 1 },
+  fullFactText: { fontSize: 18, textAlign: 'center', lineHeight: 26, fontWeight: '600' },
+
+  nextBtn: { 
+    paddingVertical: 15, paddingHorizontal: 40, borderRadius: 50, 
+    borderBottomWidth: 6, elevation: 5 
+  },
+  nextBtnText: { color: '#FFF', fontWeight: '900', fontSize: 20, letterSpacing: 1 }
 });

@@ -17,6 +17,22 @@ import {
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
+// --- NEW HELPER COMPONENT ---
+// This decides whether to enable the "Tap to Dismiss Keyboard" feature.
+// We DISABLE it on Web because it breaks the input fields.
+const KeyboardWrapper = ({ children }) => {
+  if (Platform.OS === 'web') {
+    return <View style={{ flex: 1, width: '100%' }}>{children}</View>;
+  }
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={{ flex: 1, width: '100%' }}>
+        {children}
+      </View>
+    </TouchableWithoutFeedback>
+  );
+};
+
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,12 +73,14 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <ImageBackground 
-      source={bgImage} // <--- Uses the web image if on web
+      source={bgImage} 
       style={[styles.background, { backgroundColor: theme.background }]}
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.4 : 1 }} 
       resizeMode="cover"
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      {/* USE THE NEW WRAPPER HERE */}
+      <KeyboardWrapper>
+        
         <KeyboardAvoidingView 
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.container}
@@ -122,7 +140,7 @@ export default function LoginScreen({ navigation }) {
           </View>
 
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+      </KeyboardWrapper>
     </ImageBackground>
   );
 }

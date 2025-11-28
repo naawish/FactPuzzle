@@ -33,8 +33,15 @@ const GAMES = [
     screen: 'Trivia', 
     locked: false 
   },
+  
+  // NEW GAME UNLOCKED:
+  { id: 'tictactoe', title: 'TIC TAC TOE', 
+    icon: 'grid', 
+    screen: 'TicTacToe', 
+    locked: false 
+  },
+  
   // Placeholders
-  { id: 'coming4', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
   { id: 'coming5', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
   { id: 'coming6', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
 ];

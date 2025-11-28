@@ -80,15 +80,12 @@ export default function WordFinderGame() {
     fetchFact(settings);
   };
 
-  // --- 2. FETCH LOGIC (Fixed) ---
-  const fetchFact = async (overrideDifficulty) => {
-    // Logic: Use passed difficulty OR current state.
-    // We check '.minLen' to ensure we aren't using a Click Event object by mistake.
-    const activeDifficulty = (overrideDifficulty && overrideDifficulty.minLen) 
-      ? overrideDifficulty 
+  // --- 2. FETCH LOGIC ---
+  const fetchFact = async (difficultySettings) => {
+    const activeDifficulty = (difficultySettings && difficultySettings.minLen) 
+      ? difficultySettings 
       : selectedDifficulty;
 
-    // Safety Check: If we somehow don't have a difficulty, show menu
     if (!activeDifficulty) {
       setDifficultyModalVisible(true);
       return;
@@ -117,7 +114,6 @@ export default function WordFinderGame() {
   // --- 3. NAVIGATION HANDLERS ---
   const handleNextPuzzle = () => {
     setSuccessModalVisible(false);
-    // Directly call fetchFact. It will use 'selectedDifficulty' from state.
     fetchFact();
   };
 
@@ -127,7 +123,6 @@ export default function WordFinderGame() {
   };
 
   const handleSkip = () => {
-    // Explicitly pass current state to avoid Event object issues
     fetchFact(selectedDifficulty);
   };
 
@@ -384,8 +379,22 @@ export default function WordFinderGame() {
           {grid.map((letter, index) => {
             const isSelected = selectedLetters.find(s => s.index === index);
             return (
-              <View key={index} style={[styles.cell, { borderColor: theme.background === '#0F172A' ? '#334155' : '#eee' }, isSelected && { backgroundColor: theme.primary }]}>
-                <Text style={[styles.cellText, isSelected && { color: '#FFF' }]}>{letter}</Text>
+              <View 
+                key={index} 
+                style={[
+                  styles.cell, 
+                  { 
+                    // FIXED: Dynamic Border Color for visibility
+                    borderColor: theme.background === '#0F172A' ? '#64748B' : '#eee' 
+                  }, 
+                  isSelected && { backgroundColor: theme.primary }
+                ]}
+              >
+                {/* FIXED: Dynamic Text Color */}
+                <Text style={[
+                  styles.cellText, 
+                  { color: isSelected ? '#FFF' : theme.text } 
+                ]}>{letter}</Text>
               </View>
             );
           })}
@@ -399,7 +408,6 @@ export default function WordFinderGame() {
             <Text style={styles.btnText}>{hintLevel === 0 ? "HINT (1/2)" : hintLevel === 1 ? "HINT (2/2)" : "MAX"}</Text>
           </TouchableOpacity>
 
-          {/* FIXED SKIP BUTTON */}
           <TouchableOpacity 
             style={[styles.gameBtn, { backgroundColor: theme.danger, borderBottomColor: theme.dangerShadow }]} 
             onPress={handleSkip}
@@ -461,8 +469,10 @@ const styles = StyleSheet.create({
   defText: { fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
   
   gridContainer: { width: '100%', aspectRatio: 1, flexDirection: 'row', flexWrap: 'wrap', borderWidth: 4, borderRadius: 10, overflow: 'hidden' },
+  
+  // Cell Styles (Border and Text Color handled dynamically in render)
   cell: { width: '12.5%', height: '12.5%', justifyContent: 'center', alignItems: 'center', borderWidth: 0.5 },
-  cellText: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+  cellText: { fontSize: 20, fontWeight: 'bold' },
   
   footer: { marginTop: 20, flexDirection: 'row', gap: 20 },
   gameBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 25, alignItems: 'center', borderBottomWidth: 5, minWidth: 120 },

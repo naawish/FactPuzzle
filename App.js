@@ -1,6 +1,6 @@
 // App.js
 import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native'; // Added TouchableOpacity & Text
+import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native'; 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -12,26 +12,24 @@ import { ThemeProvider, ThemeContext } from './src/context/ThemeContext';
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import HomeScreen from './src/screens/HomeScreen'; 
-import WordFinderGame from './src/games/WordFinderGame'; 
 import ProfileScreen from './src/screens/ProfileScreen';
 import CommunityScreen from './src/screens/CommunityScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
+// Import Games (Direct imports or requires are fine)
+import WordFinderGame from './src/games/WordFinderGame'; 
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// --- NEW: OFFLINE INDICATOR ---
+// --- OFFLINE INDICATOR ---
 function OfflineBadge() {
   const { isOffline } = useContext(AuthContext);
   if (!isOffline) return null;
   return (
-    <View style={{
-      position: 'absolute', bottom: 90, right: 20, backgroundColor: '#FF4500', 
-      flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 15, 
-      borderRadius: 20, elevation: 5, zIndex: 9999, borderWidth: 2, borderColor: '#FFF'
-    }}>
+    <View style={styles.offlineBadge}>
       <Ionicons name="cloud-offline" size={16} color="#FFF" />
-      <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 12, marginLeft: 5 }}>OFFLINE</Text>
+      <Text style={styles.offlineText}>OFFLINE</Text>
     </View>
   );
 }
@@ -55,42 +53,23 @@ function AppNavigation() {
     },
   };
 
-  // --- CUSTOM 3D BACK BUTTON ---
+  // --- CUSTOM BACK BUTTON ---
   const renderBackButton = (navigation) => (
     <TouchableOpacity 
       onPress={() => navigation.goBack()}
-      style={{
-        backgroundColor: '#FFF',
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 12,
-        // 3D Borders
-        borderWidth: 2,
-        borderColor: 'rgba(0,0,0,0.1)',
-        borderBottomWidth: 4,
-        borderBottomColor: 'rgba(0,0,0,0.2)',
-        marginRight: 10 // Space between button and title
-      }}
+      style={styles.backBtn}
     >
-      <Text style={{ 
-        color: theme.primary, // Matches the Header Color
-        fontWeight: '900', 
-        fontSize: 12, 
-        letterSpacing: 1 
-      }}>
-        BACK
-      </Text>
+      <Text style={[styles.backBtnText, { color: theme.primary }]}>BACK</Text>
     </TouchableOpacity>
   );
 
-  // Common Options for Game Screens
   const gameScreenOptions = ({ navigation, title }) => ({
     headerShown: true, 
     title: title,
     headerStyle: { backgroundColor: theme.primary },
     headerTintColor: '#fff',
     headerTitleStyle: { fontWeight: '900', letterSpacing: 1 },
-    headerLeft: () => renderBackButton(navigation), // Apply Custom Button
+    headerLeft: () => renderBackButton(navigation), 
   });
 
   return (
@@ -111,7 +90,8 @@ function AppNavigation() {
               options={({ navigation }) => gameScreenOptions({ navigation, title: 'SETTINGS' })} 
             />
             
-            {/* GAMES */}
+            {/* --- GAME ROUTES --- */}
+            
             <Stack.Screen 
               name="WordFinder" 
               component={WordFinderGame} 
@@ -129,6 +109,14 @@ function AppNavigation() {
               component={require('./src/games/TriviaGame').default} 
               options={({ navigation }) => gameScreenOptions({ navigation, title: 'TRIVIA' })} 
             />
+
+            {/* REGISTER TIC TAC TOE HERE */}
+            <Stack.Screen 
+              name="TicTacToe" 
+              component={require('./src/games/TicTacToeGame').default} 
+              options={({ navigation }) => gameScreenOptions({ navigation, title: 'TIC TAC TOE' })} 
+            />
+
           </>
         )}
       </Stack.Navigator>
@@ -147,7 +135,7 @@ function AppTabs() {
       screenOptions={({ route }) => ({
         headerStyle: { backgroundColor: theme.primary, shadowColor: 'transparent' }, 
         headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: '900', letterSpacing: 1 }, // Bold Header
+        headerTitleStyle: { fontWeight: '900', letterSpacing: 1 },
         
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: 'gray',
@@ -184,6 +172,27 @@ function AppTabs() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  offlineBadge: {
+    position: 'absolute', bottom: 90, right: 20, backgroundColor: '#FF4500', 
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 15, 
+    borderRadius: 20, elevation: 5, zIndex: 9999, borderWidth: 2, borderColor: '#FFF'
+  },
+  offlineText: { color: '#FFF', fontWeight: '900', fontSize: 12, marginLeft: 5 },
+  backBtn: {
+    backgroundColor: '#FFF',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.1)',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.2)',
+    marginRight: 10
+  },
+  backBtnText: { fontWeight: '900', fontSize: 12, letterSpacing: 1 }
+});
 
 export default function App() {
   return (

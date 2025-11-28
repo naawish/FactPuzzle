@@ -8,7 +8,7 @@ const GAMES = [
   { id: 'wordfinder', title: 'WORD FINDER', icon: 'extension-puzzle', screen: 'WordFinder', locked: false },
   { id: 'hangman', title: 'HANGMAN', icon: 'accessibility', screen: 'Hangman', locked: false },
   { id: 'trivia', title: 'TRIVIA', icon: 'help-buoy', screen: 'Trivia', locked: false },
-  { id: 'coming4', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
+  { id: 'tictactoe', title: 'TIC TAC TOE', icon: 'grid', screen: 'TicTacToe', locked: false },
   { id: 'coming5', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
   { id: 'coming6', title: 'COMING SOON', icon: 'lock-closed', screen: null, locked: true },
 ];

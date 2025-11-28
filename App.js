@@ -1,5 +1,6 @@
 // App.js
 import React, { useContext } from 'react';
+import { View, Text, StyleSheet, Platform } from 'react-native'; // Added View, Text, StyleSheet
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native'; 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,31 +8,38 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
 import { ThemeProvider, ThemeContext } from './src/context/ThemeContext'; 
 
-// --- SCREENS ---
+// Import Screens
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
-import HomeScreen from './src/screens/HomeScreen'; // The Game Hub
+import HomeScreen from './src/screens/HomeScreen';
+import WordFinderGame from './src/games/WordFinderGame';
 import ProfileScreen from './src/screens/ProfileScreen';
 import CommunityScreen from './src/screens/CommunityScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
-// --- GAMES ---
-import WordFinderGame from './src/games/WordFinderGame';
-// Note: Ensure these files exist in src/games/ or update path accordingly
-import HangmanGame from './src/games/HangmanGame';
-import TriviaGame from './src/games/TriviaGame';
-
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// --- NEW: OFFLINE INDICATOR COMPONENT ---
+function OfflineBadge() {
+  const { isOffline } = useContext(AuthContext);
+
+  if (!isOffline) return null; // Don't show if online
+
+  return (
+    <View style={styles.offlineBadge}>
+      <Ionicons name="cloud-offline" size={16} color="#FFF" />
+      <Text style={styles.offlineText}>OFFLINE</Text>
+    </View>
+  );
+}
 
 function AppNavigation() {
   const { user } = useContext(AuthContext);
   const { isDark, theme } = useContext(ThemeContext);
 
-  // 1. Pick the base theme to get standard fonts and behaviors
   const BaseTheme = isDark ? DarkTheme : DefaultTheme;
 
-  // 2. Merge with our Custom Colors
   const MyNavTheme = {
     ...BaseTheme,
     colors: {
@@ -45,57 +53,65 @@ function AppNavigation() {
     },
   };
 
-  // Shared Header Options for Stack Screens
-  const stackHeaderOptions = (title) => ({
-    headerShown: true, 
-    title: title,
-    headerStyle: { backgroundColor: theme.primary },
-    headerTintColor: '#fff'
-  });
-
   return (
     <NavigationContainer theme={MyNavTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!user ? (
-          // --- AUTH STACK ---
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
         ) : (
-          // --- APP STACK ---
           <>
-            {/* Main Tab Bar */}
             <Stack.Screen name="Main" component={AppTabs} />
-            
-            {/* Settings */}
             <Stack.Screen 
               name="Settings" 
               component={SettingsScreen} 
-              options={stackHeaderOptions('Account Settings')} 
+              options={{ 
+                headerShown: true, 
+                title: 'Account Settings',
+                headerStyle: { backgroundColor: theme.primary },
+                headerTintColor: '#fff'
+              }} 
             />
-
-            {/* --- GAMES --- */}
             <Stack.Screen 
               name="WordFinder" 
               component={WordFinderGame} 
-              options={stackHeaderOptions('Word Finder')} 
+              options={{ 
+                headerShown: true, 
+                title: 'Word Finder',
+                headerStyle: { backgroundColor: theme.primary },
+                headerTintColor: '#fff'
+              }} 
             />
-            
             <Stack.Screen 
               name="Hangman" 
-              component={HangmanGame} 
-              options={stackHeaderOptions('Hangman')} 
+              // Using require for lazy loading logic or direct import
+              component={require('./src/games/HangmanGame').default} 
+              options={{ 
+                headerShown: true, 
+                title: 'Hangman',
+                headerStyle: { backgroundColor: theme.primary },
+                headerTintColor: '#fff'
+              }} 
             />
-
             <Stack.Screen 
               name="Trivia" 
-              component={TriviaGame} 
-              options={stackHeaderOptions('Trivia Challenge')} 
+              component={require('./src/games/TriviaGame').default} 
+              options={{ 
+                headerShown: true, 
+                title: 'Trivia Challenge',
+                headerStyle: { backgroundColor: theme.primary },
+                headerTintColor: '#fff'
+              }} 
             />
           </>
         )}
       </Stack.Navigator>
+      
+      {/* PLACE THE BADGE HERE SO IT FLOATS OVER EVERYTHING */}
+      {user && <OfflineBadge />}
+      
     </NavigationContainer>
   );
 }
@@ -106,12 +122,10 @@ function AppTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        // Header Styling
         headerStyle: { backgroundColor: theme.primary, shadowColor: 'transparent' }, 
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: 'bold' },
         
-        // Tab Bar Styling
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: 'gray',
         tabBarStyle: { 
@@ -132,38 +146,51 @@ function AppTabs() {
           fontWeight: '600',
           paddingBottom: 5, 
         },
-        // Icon Logic
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
-          if (route.name === 'Home') {
-            iconName = focused ? 'game-controller' : 'game-controller-outline';
-          } else if (route.name === 'Community') {
-            iconName = focused ? 'trophy' : 'trophy-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
+          if (route.name === 'Home') iconName = focused ? 'game-controller' : 'game-controller-outline';
+          else if (route.name === 'Community') iconName = focused ? 'trophy' : 'trophy-outline';
+          else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeScreen} 
-        options={{ title: 'Game Hub' }} 
-      />
-      <Tab.Screen 
-        name="Community" 
-        component={CommunityScreen} 
-        options={{ title: 'Leaderboard' }} 
-      />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen} 
-        options={{ title: 'My Profile' }} 
-      />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Game Hub' }} />
+      <Tab.Screen name="Community" component={CommunityScreen} options={{ title: 'Leaderboard' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
     </Tab.Navigator>
   );
 }
+
+// STYLES FOR THE OFFLINE BADGE
+const styles = StyleSheet.create({
+  offlineBadge: {
+    position: 'absolute',
+    bottom: 90, // Above the tab bar
+    right: 20,
+    backgroundColor: '#FF4500', // Danger Red
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    borderWidth: 2,
+    borderColor: '#FFF',
+    gap: 8,
+    zIndex: 9999 // Ensure it's on top
+  },
+  offlineText: {
+    color: '#FFF',
+    fontWeight: '900',
+    fontSize: 12,
+    letterSpacing: 1
+  }
+});
 
 export default function App() {
   return (

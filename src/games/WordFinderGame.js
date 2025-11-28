@@ -87,7 +87,7 @@ export default function WordFinderGame() {
     }
     
     console.log("Saving new fact:", fact);
-    await saveSolvedPuzzle(fact);
+    await saveSolvedPuzzle(fact, 'WORD FINDER');
   };
   // -----------------------
 

@@ -1,6 +1,21 @@
 // src/screens/SettingsScreen.js
 import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Modal, ScrollView, ImageBackground, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Switch, 
+  Modal, 
+  ScrollView, 
+  ImageBackground, 
+  TextInput, 
+  Alert, 
+  KeyboardAvoidingView, 
+  Platform,
+  Image 
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker'; // Image Picker Import
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
@@ -25,19 +40,43 @@ export default function SettingsScreen() {
   // Form States
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editImage, setEditImage] = useState(null); // State for new image upload
+
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
+
+  // --- IMAGE PICKER HANDLER ---
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1], // Square crop for profile pics
+      quality: 0.5,   // Reduce quality to save database space
+      base64: true,   // We need the base64 string to save to local JSON server
+    });
+
+    if (!result.canceled) {
+      // Save the base64 string (with data prefix)
+      setEditImage('data:image/jpeg;base64,' + result.assets[0].base64);
+    }
+  };
 
   // --- Handlers ---
   const openProfileModal = () => {
     setEditName(user?.username || '');
     setEditEmail(user?.email || '');
+    setEditImage(user?.profileImage || null); // Load current image into state
     setProfileModalVisible(true);
   };
 
   const handleSaveProfile = async () => {
-    if (!editName || !editEmail) { Alert.alert("Error", "Fields cannot be empty"); return; }
-    await updateProfile(editName, editEmail);
+    if (!editName || !editEmail) { 
+      Alert.alert("Error", "Fields cannot be empty"); 
+      return; 
+    }
+    // Pass the new image (or existing one) to the context
+    await updateProfile(editName, editEmail, editImage);
     setProfileModalVisible(false);
     Alert.alert("Success", "Profile updated successfully!");
   };
@@ -49,7 +88,10 @@ export default function SettingsScreen() {
   };
 
   const handleSavePassword = async () => {
-    if (!currentPass || !newPass) { Alert.alert("Error", "Please fill in all fields"); return; }
+    if (!currentPass || !newPass) { 
+      Alert.alert("Error", "Please fill in all fields"); 
+      return; 
+    }
     const success = await changePassword(currentPass, newPass);
     if (success) {
       setPasswordModalVisible(false);
@@ -74,14 +116,12 @@ export default function SettingsScreen() {
   const subTextStyle = { color: theme.subText };
   const headerStyle = { color: theme.primary };
   
-  // Input background changes based on Dark Mode
   const inputStyle = { 
     backgroundColor: theme.background === '#0F172A' ? '#334155' : '#F5F5F5', 
     color: theme.text,
     borderColor: theme.border
   };
 
-  // Logout Button Style (Uses Danger Color)
   const logoutBtnStyle = { 
     backgroundColor: theme.danger, 
     borderColor: theme.danger,
@@ -107,6 +147,17 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
             
+            {/* Profile Image Display */}
+            <View style={styles.profileHeader}>
+              <View style={[styles.avatarContainer, { borderColor: theme.primary }]}>
+                {user?.profileImage ? (
+                  <Image source={{ uri: user.profileImage }} style={styles.avatar} />
+                ) : (
+                  <Image source={require('../../assets/app-icon.png')} style={styles.avatarPlaceholder} />
+                )}
+              </View>
+            </View>
+
             <View style={styles.row}>
               <Text style={[styles.label, textStyle]}>USERNAME</Text>
               <Text style={[styles.value, subTextStyle]}>{user?.username}</Text>
@@ -142,6 +193,7 @@ export default function SettingsScreen() {
                 value={useSystemTheme} 
                 onValueChange={toggleSystemTheme} 
                 trackColor={{ false: "#767577", true: theme.primary }}
+                thumbColor={useSystemTheme ? "#FFF" : "#f4f3f4"}
               />
             </View>
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
@@ -152,6 +204,7 @@ export default function SettingsScreen() {
                 value={isDarkMode} 
                 onValueChange={toggleDarkMode}
                 trackColor={{ false: "#767577", true: theme.primary }}
+                thumbColor={isDarkMode ? "#FFF" : "#f4f3f4"}
               />
             </View>
           </View>
@@ -165,6 +218,7 @@ export default function SettingsScreen() {
                 value={notifications} 
                 onValueChange={setNotifications}
                 trackColor={{ false: "#767577", true: theme.primary }}
+                thumbColor={notifications ? "#FFF" : "#f4f3f4"}
               />
             </View>
           </View>
@@ -183,11 +237,35 @@ export default function SettingsScreen() {
           <View style={[styles.modalCard, cardStyle]}>
             <Text style={[styles.modalTitle, headerStyle]}>EDIT PROFILE</Text>
             
+            {/* Image Picker UI */}
+            <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+              <View style={[styles.avatarEditContainer, { borderColor: theme.primary }]}>
+                {editImage ? (
+                  <Image source={{ uri: editImage }} style={styles.avatar} />
+                ) : (
+                  // Fallback if no image set yet
+                  <Text style={{ color: theme.subText, fontSize: 10 }}>ADD PHOTO</Text>
+                )}
+              </View>
+              <Text style={[styles.changePhotoText, { color: theme.primary }]}>CHANGE PHOTO</Text>
+            </TouchableOpacity>
+
             <Text style={[styles.inputLabel, textStyle]}>USERNAME</Text>
-            <TextInput style={[styles.input, inputStyle]} value={editName} onChangeText={setEditName} placeholderTextColor="#999"/>
+            <TextInput 
+              style={[styles.input, inputStyle]} 
+              value={editName} 
+              onChangeText={setEditName} 
+              placeholderTextColor={theme.subText}
+            />
 
             <Text style={[styles.inputLabel, textStyle]}>EMAIL</Text>
-            <TextInput style={[styles.input, inputStyle]} value={editEmail} onChangeText={setEditEmail} autoCapitalize="none" placeholderTextColor="#999"/>
+            <TextInput 
+              style={[styles.input, inputStyle]} 
+              value={editEmail} 
+              onChangeText={setEditEmail} 
+              autoCapitalize="none" 
+              placeholderTextColor={theme.subText}
+            />
 
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setProfileModalVisible(false)}>
@@ -208,10 +286,10 @@ export default function SettingsScreen() {
             <Text style={[styles.modalTitle, headerStyle]}>CHANGE PASSWORD</Text>
             
             <Text style={[styles.inputLabel, textStyle]}>CURRENT PASSWORD</Text>
-            <TextInput style={[styles.input, inputStyle]} value={currentPass} onChangeText={setCurrentPass} secureTextEntry placeholderTextColor="#999"/>
+            <TextInput style={[styles.input, inputStyle]} value={currentPass} onChangeText={setCurrentPass} secureTextEntry placeholderTextColor={theme.subText}/>
 
             <Text style={[styles.inputLabel, textStyle]}>NEW PASSWORD</Text>
-            <TextInput style={[styles.input, inputStyle]} value={newPass} onChangeText={setNewPass} secureTextEntry placeholderTextColor="#999"/>
+            <TextInput style={[styles.input, inputStyle]} value={newPass} onChangeText={setNewPass} secureTextEntry placeholderTextColor={theme.subText}/>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setPasswordModalVisible(false)}>
@@ -236,7 +314,6 @@ export default function SettingsScreen() {
                 <Text style={styles.cancelText}>STAY</Text>
               </TouchableOpacity>
               
-              {/* Uses Danger Color */}
               <TouchableOpacity 
                 style={[styles.modalBtn, styles.logoutActionBtn, { backgroundColor: theme.danger, borderBottomColor: theme.dangerShadow }]} 
                 onPress={confirmLogout}
@@ -256,7 +333,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20 },
   
-  // Game Card structure (Colors are dynamic via style prop)
+  // Game Card
   gameCard: {
     marginBottom: 20,
     borderRadius: 20,
@@ -269,6 +346,28 @@ const styles = StyleSheet.create({
   cardHeader: { fontSize: 14, fontWeight: '900', letterSpacing: 1 },
   editLink: { fontWeight: 'bold', fontSize: 12 },
   
+  // Profile Image Display (Account Card)
+  profileHeader: { alignItems: 'center', marginBottom: 20 },
+  avatarContainer: { 
+    width: 80, height: 80, borderRadius: 40, 
+    borderWidth: 3, overflow: 'hidden', 
+    backgroundColor: '#ccc', 
+    justifyContent: 'center', alignItems: 'center' 
+  },
+  avatar: { width: '100%', height: '100%' },
+  avatarPlaceholder: { width: '100%', height: '100%', opacity: 0.5 },
+
+  // Modal Image Picker
+  imagePicker: { alignItems: 'center', marginBottom: 20 },
+  avatarEditContainer: { 
+    width: 100, height: 100, borderRadius: 50, 
+    borderWidth: 3, overflow: 'hidden', 
+    backgroundColor: '#eee', 
+    justifyContent: 'center', alignItems: 'center', 
+    marginBottom: 10 
+  },
+  changePhotoText: { fontSize: 12, fontWeight: 'bold' },
+
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
   label: { fontSize: 16, fontWeight: '700' },
   value: { fontSize: 16, fontWeight: '500' },
@@ -290,7 +389,6 @@ const styles = StyleSheet.create({
   actionBtnText: { fontWeight: 'bold', color: '#555', fontSize: 12 },
 
   logoutBtn: { 
-    // Background color removed here as it is dynamic now
     paddingVertical: 15, 
     borderRadius: 50, 
     alignItems: 'center',
@@ -327,8 +425,8 @@ const styles = StyleSheet.create({
   modalBtn: { flex: 1, paddingVertical: 12, borderRadius: 15, alignItems: 'center', borderBottomWidth: 4 },
   
   cancelBtn: { backgroundColor: '#E0E0E0', borderBottomColor: '#999' },
-  confirmBtn: { /* Dynamic */ }, 
-  logoutActionBtn: { /* Dynamic */ },
+  confirmBtn: { }, // Color handled inline
+  logoutActionBtn: { }, // Color handled inline
   
   cancelText: { color: '#333', fontWeight: '900' },
   confirmText: { color: 'white', fontWeight: '900' }

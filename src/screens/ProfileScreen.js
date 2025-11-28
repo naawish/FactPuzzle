@@ -1,10 +1,23 @@
 // src/screens/ProfileScreen.js
 import React, { useContext, useState, useRef, useMemo } from 'react';
-import { View, Text, SectionList, StyleSheet, TouchableOpacity, ImageBackground, Image, Alert } from 'react-native';
+// 1. FIXED IMPORTS: Combined Platform and Alert into one line
+import { 
+  View, 
+  Text, 
+  SectionList, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ImageBackground, 
+  Image, 
+  Alert, 
+  Platform 
+} from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+
+// --- SHARING LIBRARIES ---
 import ViewShot from "react-native-view-shot";
 import * as Sharing from 'expo-sharing';
 
@@ -75,17 +88,28 @@ export default function ProfileScreen() {
 
   // --- SHARE FUNCTION ---
   const handleShare = async (factText) => {
+    // 2. WEB CHECK: Prevent crash on browser
+    if (Platform.OS === 'web') {
+      Alert.alert("Web Mode", "Image sharing is only available on the mobile app.");
+      return;
+    }
+
     setSharingFact(factText);
+
     setTimeout(async () => {
       try {
-        const uri = await viewShotRef.current.capture();
-        if (!(await Sharing.isAvailableAsync())) {
-          Alert.alert("Error", "Sharing is not available");
-          return;
+        if (viewShotRef.current) {
+          const uri = await viewShotRef.current.capture();
+          
+          if (!(await Sharing.isAvailableAsync())) {
+            Alert.alert("Error", "Sharing is not available on this device");
+            return;
+          }
+          await Sharing.shareAsync(uri);
         }
-        await Sharing.shareAsync(uri);
       } catch (error) {
-        Alert.alert("Error", "Could not generate share image.");
+        console.error("Share Error:", error);
+        Alert.alert("Error", "Could not generate image.");
       }
     }, 100); 
   };
@@ -103,13 +127,18 @@ export default function ProfileScreen() {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
+      
       {/* HIDDEN SHARE TEMPLATE */}
-      <View style={{ position: 'absolute', left: -1000, top: 0 }}>
-        <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1.0 }}>
+      {/* On Web, ViewShot might not work correctly, but the Platform check above prevents execution */}
+      <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+        <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1.0 }} collapsable={false}>
           <View style={[styles.shareTemplate, { backgroundColor: theme.background, borderColor: theme.primary }]}>
             <View style={styles.shareHeader}>
               <Image source={require('../../assets/app-icon.png')} style={styles.shareIcon} />
-              <Image source={isDark ? require('../../assets/Title-Dark.png') : require('../../assets/Title-Light.png')} style={styles.shareTitleImg} />
+              <Image 
+                source={isDark ? require('../../assets/Title-Dark.png') : require('../../assets/Title-Light.png')} 
+                style={styles.shareTitleImg} 
+              />
             </View>
             <View style={[styles.shareContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <Text style={[styles.shareText, { color: theme.text }]}>"{sharingFact}"</Text>
@@ -135,13 +164,12 @@ export default function ProfileScreen() {
         <Text style={styles.dividerText}>TIMELINE</Text>
       </View>
 
-      {/* TIMELINE SECTION LIST */}
       <SectionList
         sections={sections}
         keyExtractor={(item, index) => item + index}
         contentContainerStyle={{ paddingBottom: 20 }}
         stickySectionHeadersEnabled={false}
-        showsVerticalScrollIndicator={false} // <--- ADDED THIS LINE
+        showsVerticalScrollIndicator={false}
         
         renderSectionHeader={({ section: { title } }) => (
           <View style={styles.timelineHeader}>
@@ -164,7 +192,8 @@ export default function ProfileScreen() {
                   <Text style={[styles.factNumber, { color: theme.primary }]}>PUZZLE SOLVED</Text>
                   <View style={[styles.badge, { backgroundColor: theme.success }]} />
                 </View>
-                <TouchableOpacity onPress={() => handleShare(item)}>
+                
+                <TouchableOpacity onPress={() => handleShare(item)} style={{ padding: 5 }}>
                   <Ionicons name="share-social" size={24} color={theme.subText} />
                 </TouchableOpacity>
               </View>
@@ -186,7 +215,6 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingBottom: 0 },
-  
   playerCard: { 
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
     marginBottom: 20, padding: 20, borderRadius: 20, 
@@ -195,40 +223,33 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 12, fontWeight: 'bold', marginBottom: 2 },
   username: { fontSize: 26, fontWeight: '900', textTransform: 'uppercase' },
   stats: { marginTop: 5, fontWeight: '600' },
-  
   settingsBtn: { 
     backgroundColor: '#E0E0E0', width: 50, height: 50, justifyContent: 'center', alignItems: 'center', 
     borderRadius: 15, borderWidth: 2, borderColor: '#999', borderBottomWidth: 4, borderBottomColor: '#777'
   },
   settingsText: { fontSize: 24 },
-
   divider: { alignItems: 'center', marginBottom: 15 },
   dividerText: { color: '#FFF', fontWeight: '900', fontSize: 14, textShadowColor: 'black', textShadowRadius: 2 },
-
   timelineHeader: { alignItems: 'center', marginBottom: 15, marginTop: 10 },
   dateBadge: { paddingVertical: 6, paddingHorizontal: 15, borderRadius: 20, borderWidth: 2, borderColor: 'white', elevation: 3 },
   dateText: { color: 'white', fontWeight: '900', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
-
   timelineRow: { flexDirection: 'row', marginBottom: 15 },
   timelineGuide: { width: 30, alignItems: 'center', marginRight: 10 },
   line: { position: 'absolute', top: -20, bottom: -20, width: 4, borderRadius: 2, opacity: 0.5 },
   dot: { width: 16, height: 16, borderRadius: 8, borderWidth: 3, marginTop: 25, zIndex: 1 },
-
   card: { flex: 1, padding: 15, borderRadius: 15, borderWidth: 3, borderBottomWidth: 6, elevation: 5 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   factNumber: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
   badge: { width: 10, height: 10, borderRadius: 5 },
   factText: { fontSize: 15, lineHeight: 22, fontWeight: '500' },
-  
   emptyContainer: { padding: 30, borderRadius: 20, alignItems: 'center', borderWidth: 2, borderStyle: 'dashed' },
   emptyText: { fontSize: 18, fontWeight: 'bold' },
   emptySub: { fontSize: 14, marginTop: 5 },
-
-  shareTemplate: { width: 400, padding: 30, alignItems: 'center', borderWidth: 10 },
-  shareHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 15 },
-  shareIcon: { width: 60, height: 60, borderRadius: 15 },
-  shareTitleImg: { width: 180, height: 50, resizeMode: 'contain' },
-  shareContent: { width: '100%', padding: 30, borderRadius: 20, borderWidth: 4, marginBottom: 20, alignItems: 'center' },
-  shareText: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', lineHeight: 32, fontStyle: 'italic' },
-  shareFooter: { fontSize: 16, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 }
+  shareTemplate: { width: 400, padding: 40, alignItems: 'center', borderWidth: 10, borderRadius: 30 },
+  shareHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 30, gap: 20 },
+  shareIcon: { width: 80, height: 80, borderRadius: 20 },
+  shareTitleImg: { width: 200, height: 60, resizeMode: 'contain' },
+  shareContent: { width: '100%', padding: 30, borderRadius: 20, borderWidth: 5, marginBottom: 30, alignItems: 'center', minHeight: 200, justifyContent: 'center' },
+  shareText: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', lineHeight: 34, fontStyle: 'italic' },
+  shareFooter: { fontSize: 18, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 2 }
 });

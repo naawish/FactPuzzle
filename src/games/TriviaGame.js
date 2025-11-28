@@ -76,7 +76,7 @@ export default function TriviaGame() {
     if (cleanUser === cleanCorrect) {
       setGameStatus('won');
       const factString = `Q: ${question}\nA: ${correctAnswer}`;
-      saveSolvedPuzzle(factString);
+      saveSolvedPuzzle(factString, 'TRIVIA');
     } else {
       // UPDATED: Show Custom Modal instead of Alert
       setRetryModalVisible(true);

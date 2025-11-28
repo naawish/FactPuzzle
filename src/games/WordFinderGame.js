@@ -17,14 +17,14 @@ const DIFFICULTIES = {
     icon: 'star', 
     minLen: 3, 
     maxLen: 5, 
-    directions: [[0, 1]] // Horizontal only
+    directions: [[0, 1]] 
   },
   MEDIUM: { 
     label: 'MEDIUM', 
     icon: 'flash', 
     minLen: 5, 
     maxLen: 7, 
-    directions: [[0, 1], [1, 0]] // Horizontal + Vertical
+    directions: [[0, 1], [1, 0]] 
   },
   HARD: { 
     label: 'HARD', 
@@ -48,8 +48,8 @@ export default function WordFinderGame() {
   
   // UI States
   const [loading, setLoading] = useState(false);
-  const [difficultyModalVisible, setDifficultyModalVisible] = useState(true); // Start visible
-  const [selectedDifficulty, setSelectedDifficulty] = useState(null); // Tracks current mode
+  const [difficultyModalVisible, setDifficultyModalVisible] = useState(true); 
+  const [selectedDifficulty, setSelectedDifficulty] = useState(null); 
   const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   // Hints
@@ -60,40 +60,40 @@ export default function WordFinderGame() {
   // Refs
   const gridRef = useRef([]); 
   const targetWordRef = useRef(''); 
+  const factRef = useRef('');
   const selectionRef = useRef([]);  
   const selectionOriginRef = useRef(null); 
   const gridViewRef = useRef(null);
   const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0, pageX: 0, pageY: 0 });
   const clearTimerRef = useRef(null);
 
-  useEffect(() => {
-    targetWordRef.current = targetWord;
-  }, [targetWord]);
-
-  useEffect(() => {
-    gridRef.current = grid;
-  }, [grid]);
+  // Sync Refs
+  useEffect(() => { targetWordRef.current = targetWord; }, [targetWord]);
+  useEffect(() => { gridRef.current = grid; }, [grid]);
+  useEffect(() => { factRef.current = fact; }, [fact]); 
 
   // --- 1. START GAME ---
   const startGame = (diffKey) => {
     const settings = DIFFICULTIES[diffKey];
-    setSelectedDifficulty(settings); // Save selection
+    setSelectedDifficulty(settings); 
     setDifficultyModalVisible(false);
     fetchFact(settings);
   };
 
-  // --- 2. NEXT PUZZLE LOGIC (Modified) ---
-  const handleNextPuzzle = () => {
-    setSuccessModalVisible(false);
-    // Reuse the already selected difficulty
-    if (selectedDifficulty) {
-      fetchFact(selectedDifficulty);
-    } else {
-      setDifficultyModalVisible(true); // Fallback
-    }
-  };
+  // --- 2. FETCH LOGIC (Fixed) ---
+  const fetchFact = async (overrideDifficulty) => {
+    // Logic: Use passed difficulty OR current state.
+    // We check '.minLen' to ensure we aren't using a Click Event object by mistake.
+    const activeDifficulty = (overrideDifficulty && overrideDifficulty.minLen) 
+      ? overrideDifficulty 
+      : selectedDifficulty;
 
-  const fetchFact = async (difficultySettings) => {
+    // Safety Check: If we somehow don't have a difficulty, show menu
+    if (!activeDifficulty) {
+      setDifficultyModalVisible(true);
+      return;
+    }
+
     setLoading(true);
     setSuccessModalVisible(false); 
     setSelectedLetters([]);
@@ -107,35 +107,43 @@ export default function WordFinderGame() {
       });
       const factText = response.data[0].fact;
       setFact(factText);
-      generatePuzzle(factText, difficultySettings);
+      generatePuzzle(factText, activeDifficulty);
     } catch (error) {
       setLoading(false);
       Alert.alert("Error", "Could not load puzzle.");
     }
   };
 
-  // --- 3. PUZZLE GENERATION ---
+  // --- 3. NAVIGATION HANDLERS ---
+  const handleNextPuzzle = () => {
+    setSuccessModalVisible(false);
+    // Directly call fetchFact. It will use 'selectedDifficulty' from state.
+    fetchFact();
+  };
+
+  const handleBackToMenu = () => {
+    setSuccessModalVisible(false);
+    setDifficultyModalVisible(true);
+  };
+
+  const handleSkip = () => {
+    // Explicitly pass current state to avoid Event object issues
+    fetchFact(selectedDifficulty);
+  };
+
+  // --- 4. PUZZLE GENERATION ---
   const generatePuzzle = (factText, difficulty) => {
     const cleanText = factText.replace(/[^a-zA-Z ]/g, "");
+    const words = cleanText.split(" ").filter(w => w.length >= difficulty.minLen && w.length <= difficulty.maxLen);
     
-    const words = cleanText.split(" ").filter(w => 
-      w.length >= difficulty.minLen && w.length <= difficulty.maxLen
-    );
-    
-    let word = words.length > 0 
-      ? words[Math.floor(Math.random() * words.length)].toUpperCase() 
-      : "PUZZLE"; 
-
+    let word = words.length > 0 ? words[Math.floor(Math.random() * words.length)].toUpperCase() : "PUZZLE"; 
     if (word.length > GRID_SIZE) word = "FACTS"; 
 
     setTargetWord(word);
-
     const maskedFact = factText.replace(new RegExp(word, 'gi'), "_______");
     setHint(maskedFact);
 
-    // Initialize Grid
     let newGrid = new Array(GRID_SIZE * GRID_SIZE).fill('');
-    
     const dirs = difficulty.directions;
     const [dRow, dCol] = dirs[Math.floor(Math.random() * dirs.length)];
 
@@ -145,7 +153,6 @@ export default function WordFinderGame() {
     while (!placed && attempts < 100) {
       const startRow = Math.floor(Math.random() * GRID_SIZE);
       const startCol = Math.floor(Math.random() * GRID_SIZE);
-
       const endRow = startRow + (dRow * (word.length - 1));
       const endCol = startCol + (dCol * (word.length - 1));
 
@@ -162,9 +169,7 @@ export default function WordFinderGame() {
 
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for (let i = 0; i < newGrid.length; i++) {
-      if (newGrid[i] === '') {
-        newGrid[i] = alphabet[Math.floor(Math.random() * alphabet.length)];
-      }
+      if (newGrid[i] === '') newGrid[i] = alphabet[Math.floor(Math.random() * alphabet.length)];
     }
 
     setGrid(newGrid);
@@ -199,6 +204,17 @@ export default function WordFinderGame() {
     return lineIndices;
   };
 
+  const saveFact = async () => {
+    const currentFact = factRef.current; 
+    if (!user || !user.solved) return;
+    const isAlreadySolved = user.solved.some(item => {
+      if (typeof item === 'string') return item === currentFact;
+      return item.text === currentFact;
+    });
+    if (isAlreadySolved) return;
+    await saveSolvedPuzzle(currentFact);
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -218,7 +234,10 @@ export default function WordFinderGame() {
         const correct = targetWordRef.current;
         selectionOriginRef.current = null;
 
-        if (currentSelection !== correct) {
+        if (currentSelection === correct) {
+          saveFact();
+          setSuccessModalVisible(true);
+        } else {
            clearTimerRef.current = setTimeout(() => {
             setSelectedLetters([]);
             selectionRef.current = [];
@@ -240,9 +259,7 @@ export default function WordFinderGame() {
     const row = Math.floor(relativeY / cellSize);
     const index = row * GRID_SIZE + col;
 
-    if (index >= 0 && index < GRID_SIZE * GRID_SIZE) {
-      updateSelection(index, isStart);
-    }
+    if (index >= 0 && index < GRID_SIZE * GRID_SIZE) updateSelection(index, isStart);
   };
 
   const updateSelection = (currentIndex, isStart) => {
@@ -257,6 +274,7 @@ export default function WordFinderGame() {
 
     const originIndex = selectionOriginRef.current;
     if (originIndex === null) return;
+    
     const lineIndices = getLineBetween(originIndex, currentIndex);
 
     if (lineIndices) {
@@ -296,24 +314,6 @@ export default function WordFinderGame() {
     }
   };
 
-  useEffect(() => {
-    const formedWord = selectedLetters.map(s => s.letter).join('');
-    if (formedWord && formedWord === targetWord) {
-      saveFact(); 
-      setSuccessModalVisible(true); 
-    } 
-  }, [selectedLetters, targetWord]); 
-
-  const saveFact = async () => {
-    if (!user || !user.solved) return;
-    const isAlreadySolved = user.solved.some(item => {
-      if (typeof item === 'string') return item === fact;
-      return item.text === fact;
-    });
-    if (isAlreadySolved) return;
-    await saveSolvedPuzzle(fact);
-  };
-
   // Styles
   const cardStyle = { backgroundColor: theme.card, borderColor: theme.border };
   const gridStyle = { borderColor: theme.border, backgroundColor: theme.card };
@@ -331,7 +331,7 @@ export default function WordFinderGame() {
       resizeMode="cover"
     >
       
-      {/* 1. DIFFICULTY SELECTION MODAL */}
+      {/* 1. DIFFICULTY MODAL */}
       <Modal visible={difficultyModalVisible} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, modalStyle]}>
@@ -399,18 +399,19 @@ export default function WordFinderGame() {
             <Text style={styles.btnText}>{hintLevel === 0 ? "HINT (1/2)" : hintLevel === 1 ? "HINT (2/2)" : "MAX"}</Text>
           </TouchableOpacity>
 
+          {/* FIXED SKIP BUTTON */}
           <TouchableOpacity 
             style={[styles.gameBtn, { backgroundColor: theme.danger, borderBottomColor: theme.dangerShadow }]} 
-            onPress={() => setDifficultyModalVisible(true)}
+            onPress={handleSkip}
           >
-            <Text style={styles.btnText}>QUIT</Text>
+            <Text style={styles.btnText}>SKIP</Text>
           </TouchableOpacity>
         </View>
 
       </View>
 
       {/* 3. SUCCESS MODAL */}
-      <Modal visible={successModalVisible} transparent={true} animationType="slide">
+      <Modal visible={successModalVisible} transparent={true} animationType="slide" onRequestClose={handleNextPuzzle}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, modalStyle]}>
             <Text style={[styles.modalTitle, { color: theme.primary }]}>PUZZLE SOLVED!</Text>
@@ -418,9 +419,23 @@ export default function WordFinderGame() {
               <Text style={[styles.factLabel, { color: theme.subText }]}>DID YOU KNOW?</Text>
               <Text style={[styles.fullFactText, textStyle]}>"{fact}"</Text>
             </View>
-            <TouchableOpacity style={[styles.nextBtn, { backgroundColor: theme.primary }]} onPress={handleNextPuzzle}>
-              <Text style={styles.nextBtnText}>NEXT PUZZLE</Text>
-            </TouchableOpacity>
+            
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: '#E0E0E0', borderBottomColor: '#999' }]} 
+                onPress={handleBackToMenu}
+              >
+                <Text style={[styles.btnText, { color: '#555' }]}>MENU</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: theme.primary, borderBottomColor: theme.shadow, flex: 1.5 }]} 
+                onPress={handleNextPuzzle}
+              >
+                <Text style={styles.btnText}>NEXT</Text>
+              </TouchableOpacity>
+            </View>
+
           </View>
         </View>
       </Modal>
@@ -464,6 +479,7 @@ const styles = StyleSheet.create({
   modalContent: { marginBottom: 25, alignItems: 'center' },
   factLabel: { fontSize: 12, fontWeight: 'bold', marginBottom: 5 },
   fullFactText: { fontSize: 16, textAlign: 'center', fontWeight: '600' },
-  nextBtn: { paddingVertical: 15, paddingHorizontal: 40, borderRadius: 50, borderBottomWidth: 6 },
-  nextBtnText: { color: '#FFF', fontWeight: '900', fontSize: 18 }
+  
+  modalBtnRow: { flexDirection: 'row', width: '100%', gap: 15 },
+  modalBtn: { flex: 1, paddingVertical: 15, borderRadius: 50, borderBottomWidth: 6, alignItems: 'center' }
 });

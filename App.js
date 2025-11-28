@@ -1,6 +1,6 @@
 // App.js
 import React, { useContext } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native'; // Added View, Text, StyleSheet
+import { View, Text, TouchableOpacity, Platform } from 'react-native'; // Added TouchableOpacity & Text
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native'; 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,8 +11,8 @@ import { ThemeProvider, ThemeContext } from './src/context/ThemeContext';
 // Import Screens
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
-import HomeScreen from './src/screens/HomeScreen';
-import WordFinderGame from './src/games/WordFinderGame';
+import HomeScreen from './src/screens/HomeScreen'; 
+import WordFinderGame from './src/games/WordFinderGame'; 
 import ProfileScreen from './src/screens/ProfileScreen';
 import CommunityScreen from './src/screens/CommunityScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -20,16 +20,18 @@ import SettingsScreen from './src/screens/SettingsScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// --- NEW: OFFLINE INDICATOR COMPONENT ---
+// --- NEW: OFFLINE INDICATOR ---
 function OfflineBadge() {
   const { isOffline } = useContext(AuthContext);
-
-  if (!isOffline) return null; // Don't show if online
-
+  if (!isOffline) return null;
   return (
-    <View style={styles.offlineBadge}>
+    <View style={{
+      position: 'absolute', bottom: 90, right: 20, backgroundColor: '#FF4500', 
+      flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 15, 
+      borderRadius: 20, elevation: 5, zIndex: 9999, borderWidth: 2, borderColor: '#FFF'
+    }}>
       <Ionicons name="cloud-offline" size={16} color="#FFF" />
-      <Text style={styles.offlineText}>OFFLINE</Text>
+      <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 12, marginLeft: 5 }}>OFFLINE</Text>
     </View>
   );
 }
@@ -53,6 +55,44 @@ function AppNavigation() {
     },
   };
 
+  // --- CUSTOM 3D BACK BUTTON ---
+  const renderBackButton = (navigation) => (
+    <TouchableOpacity 
+      onPress={() => navigation.goBack()}
+      style={{
+        backgroundColor: '#FFF',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        // 3D Borders
+        borderWidth: 2,
+        borderColor: 'rgba(0,0,0,0.1)',
+        borderBottomWidth: 4,
+        borderBottomColor: 'rgba(0,0,0,0.2)',
+        marginRight: 10 // Space between button and title
+      }}
+    >
+      <Text style={{ 
+        color: theme.primary, // Matches the Header Color
+        fontWeight: '900', 
+        fontSize: 12, 
+        letterSpacing: 1 
+      }}>
+        BACK
+      </Text>
+    </TouchableOpacity>
+  );
+
+  // Common Options for Game Screens
+  const gameScreenOptions = ({ navigation, title }) => ({
+    headerShown: true, 
+    title: title,
+    headerStyle: { backgroundColor: theme.primary },
+    headerTintColor: '#fff',
+    headerTitleStyle: { fontWeight: '900', letterSpacing: 1 },
+    headerLeft: () => renderBackButton(navigation), // Apply Custom Button
+  });
+
   return (
     <NavigationContainer theme={MyNavTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -64,52 +104,35 @@ function AppNavigation() {
         ) : (
           <>
             <Stack.Screen name="Main" component={AppTabs} />
+            
             <Stack.Screen 
               name="Settings" 
               component={SettingsScreen} 
-              options={{ 
-                headerShown: true, 
-                title: 'Account Settings',
-                headerStyle: { backgroundColor: theme.primary },
-                headerTintColor: '#fff'
-              }} 
+              options={({ navigation }) => gameScreenOptions({ navigation, title: 'SETTINGS' })} 
             />
+            
+            {/* GAMES */}
             <Stack.Screen 
               name="WordFinder" 
               component={WordFinderGame} 
-              options={{ 
-                headerShown: true, 
-                title: 'Word Finder',
-                headerStyle: { backgroundColor: theme.primary },
-                headerTintColor: '#fff'
-              }} 
+              options={({ navigation }) => gameScreenOptions({ navigation, title: 'WORD FINDER' })} 
             />
+            
             <Stack.Screen 
               name="Hangman" 
-              // Using require for lazy loading logic or direct import
               component={require('./src/games/HangmanGame').default} 
-              options={{ 
-                headerShown: true, 
-                title: 'Hangman',
-                headerStyle: { backgroundColor: theme.primary },
-                headerTintColor: '#fff'
-              }} 
+              options={({ navigation }) => gameScreenOptions({ navigation, title: 'HANGMAN' })} 
             />
+            
             <Stack.Screen 
               name="Trivia" 
               component={require('./src/games/TriviaGame').default} 
-              options={{ 
-                headerShown: true, 
-                title: 'Trivia Challenge',
-                headerStyle: { backgroundColor: theme.primary },
-                headerTintColor: '#fff'
-              }} 
+              options={({ navigation }) => gameScreenOptions({ navigation, title: 'TRIVIA' })} 
             />
           </>
         )}
       </Stack.Navigator>
       
-      {/* PLACE THE BADGE HERE SO IT FLOATS OVER EVERYTHING */}
       {user && <OfflineBadge />}
       
     </NavigationContainer>
@@ -124,7 +147,7 @@ function AppTabs() {
       screenOptions={({ route }) => ({
         headerStyle: { backgroundColor: theme.primary, shadowColor: 'transparent' }, 
         headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' },
+        headerTitleStyle: { fontWeight: '900', letterSpacing: 1 }, // Bold Header
         
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: 'gray',
@@ -155,42 +178,12 @@ function AppTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Game Hub' }} />
-      <Tab.Screen name="Community" component={CommunityScreen} options={{ title: 'Leaderboard' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'GAME HUB' }} />
+      <Tab.Screen name="Community" component={CommunityScreen} options={{ title: 'LEADERBOARD' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'MY PROFILE' }} />
     </Tab.Navigator>
   );
 }
-
-// STYLES FOR THE OFFLINE BADGE
-const styles = StyleSheet.create({
-  offlineBadge: {
-    position: 'absolute',
-    bottom: 90, // Above the tab bar
-    right: 20,
-    backgroundColor: '#FF4500', // Danger Red
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    borderWidth: 2,
-    borderColor: '#FFF',
-    gap: 8,
-    zIndex: 9999 // Ensure it's on top
-  },
-  offlineText: {
-    color: '#FFF',
-    fontWeight: '900',
-    fontSize: 12,
-    letterSpacing: 1
-  }
-});
 
 export default function App() {
   return (

@@ -113,8 +113,8 @@ const styles = StyleSheet.create({
     marginBottom: 20, 
     textAlign: 'center',
     textShadowColor: 'rgba(255,255,255,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 0,
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 1,
     letterSpacing: 1
   },
   

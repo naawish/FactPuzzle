@@ -1,15 +1,16 @@
 // src/games/TicTacToeGame.js
 import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ImageBackground, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native'; // <--- 1. IMPORT THIS
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
 import { Ionicons } from '@expo/vector-icons';
 
 // WINNING COMBINATIONS
 const WIN_CONDITIONS = [
-  [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-  [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
-  [0, 4, 8], [2, 4, 6]             // Diagonals
+  [0, 1, 2], [3, 4, 5], [6, 7, 8], 
+  [0, 3, 6], [1, 4, 7], [2, 5, 8], 
+  [0, 4, 8], [2, 4, 6]             
 ];
 
 // MODES
@@ -21,6 +22,7 @@ const MODES = {
 };
 
 export default function TicTacToeGame() {
+  const navigation = useNavigation(); // <--- 2. INITIALIZE NAVIGATION
   const { theme } = useContext(ThemeContext);
   const { saveSolvedPuzzle } = useContext(AuthContext);
 
@@ -178,6 +180,12 @@ export default function TicTacToeGame() {
     setDifficultyModalVisible(true);
   };
 
+  // 3. EXIT HANDLER
+  const handleExitToHub = () => {
+    setWinner(null);
+    navigation.goBack(); // This goes back to Home Screen (Game Hub)
+  };
+
   // --- STYLES ---
   const cardStyle = { backgroundColor: theme.card, borderColor: theme.border };
   const modalStyle = { backgroundColor: theme.card, borderColor: theme.border, borderBottomColor: theme.shadow };
@@ -236,7 +244,6 @@ export default function TicTacToeGame() {
                   styles.cell, 
                   { 
                     borderColor: theme.background === '#0F172A' ? '#334155' : '#eee',
-                    // Logic to remove outer borders for cleaner look
                     borderRightWidth: (index % 3 === 2) ? 0 : 2,
                     borderBottomWidth: (index > 5) ? 0 : 2
                   }
@@ -257,7 +264,6 @@ export default function TicTacToeGame() {
           {/* Footer Buttons */}
           <View style={styles.footer}>
             
-            {/* CHANGED BUTTON LABEL HERE */}
             <TouchableOpacity style={[styles.gameBtn, { backgroundColor: '#E0E0E0', borderBottomColor: '#999' }]} onPress={openDifficultyMenu}>
               <Text style={[styles.btnText, { color: '#555', fontSize: 13 }]}>DIFFICULTY</Text>
             </TouchableOpacity>
@@ -282,9 +288,10 @@ export default function TicTacToeGame() {
             </Text>
 
             <View style={styles.modalBtnRow}>
-              {/* CHANGED BUTTON LABEL HERE TOO */}
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E0E0E0', borderBottomColor: '#999' }]} onPress={openDifficultyMenu}>
-                <Text style={[styles.btnText, { color: '#555', fontSize: 13 }]}>DIFFICULTY</Text>
+              
+              {/* UPDATED: CALLS HANDLE EXIT */}
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E0E0E0', borderBottomColor: '#999' }]} onPress={handleExitToHub}>
+                <Text style={[styles.btnText, { color: '#555', fontSize: 13 }]}>MENU</Text>
               </TouchableOpacity>
               
               <TouchableOpacity style={[styles.modalBtn, btnStyle]} onPress={resetGame}>
@@ -308,11 +315,10 @@ const styles = StyleSheet.create({
   modeLabel: { fontSize: 12, fontWeight: 'bold', marginBottom: 5 },
   turnText: { fontSize: 24, fontWeight: '900', letterSpacing: 2 },
 
-  // --- UPDATED GRID STYLES (Percentages) ---
   gridContainer: { 
     width: '100%', 
     maxWidth: 320, 
-    aspectRatio: 1, // Ensures perfect square
+    aspectRatio: 1, 
     borderRadius: 20, 
     borderWidth: 4, 
     flexDirection: 'row', 
@@ -321,7 +327,7 @@ const styles = StyleSheet.create({
     elevation: 10 
   },
   cell: { 
-    width: '33.33%', // Exact 1/3 of container
+    width: '33.33%', 
     height: '33.33%', 
     justifyContent: 'center', 
     alignItems: 'center' 

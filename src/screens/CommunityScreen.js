@@ -1,16 +1,38 @@
 // src/screens/CommunityScreen.js
 import React, { useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ImageBackground, Dimensions } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-import { ThemeContext } from '../context/ThemeContext'; // <--- IMPORT THIS
+import { ThemeContext } from '../context/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function CommunityScreen() {
   const { user } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext); // <--- USE THEME
+  const { theme } = useContext(ThemeContext);
 
-  const userScore = user?.solved ? user.solved.length : 0;
+  const solvedList = user?.solved || [];
+  const totalScore = solvedList.length;
   const userName = user?.username || "You";
 
+  // --- STATS CALCULATION ---
+  const stats = useMemo(() => {
+    let hangman = 0;
+    let tictactoe = 0;
+    let trivia = 0;
+    let wordfinder = 0;
+
+    solvedList.forEach(item => {
+      const text = typeof item === 'string' ? item : item.text;
+      
+      if (text.startsWith("Solved Hangman")) hangman++;
+      else if (text.startsWith("Beat TicTacToe")) tictactoe++;
+      else if (text.startsWith("Q:")) trivia++;
+      else wordfinder++; // Default/Old data is assumed WordFinder
+    });
+
+    return { hangman, tictactoe, trivia, wordfinder };
+  }, [solvedList]);
+
+  // Mock Bots
   const bots = [
     { id: '1', name: 'PuzzleMaster', score: 42 },
     { id: '2', name: 'TriviaKing', score: 30 },
@@ -21,36 +43,21 @@ export default function CommunityScreen() {
   const leaderboard = useMemo(() => {
     const allPlayers = [
       ...bots,
-      { id: 'user', name: `${userName} (You)`, score: userScore, isUser: true }
+      { id: 'user', name: `${userName} (You)`, score: totalScore, isUser: true }
     ];
     return allPlayers.sort((a, b) => b.score - a.score);
-  }, [userScore, userName]);
+  }, [totalScore, userName]);
 
   const userRank = leaderboard.findIndex(p => p.isUser) + 1;
 
-  // --- DYNAMIC STYLES ---
+  // Styles
   const headerStyle = { color: theme.primary };
-  
-  const statsCardStyle = { 
-    backgroundColor: theme.primary, // Orange (Light) vs Violet (Dark)
-    borderColor: '#FFF', // Keep white border for contrast
-  };
-
-  const rowStyle = { 
-    backgroundColor: theme.card, 
-    borderColor: theme.border, 
-    borderBottomColor: theme.shadow 
-  };
-
-  // Special Highlight for "My Row"
-  const myRowStyle = { 
-    backgroundColor: theme.background === '#0F172A' ? '#334155' : '#FFFBE6', // Dark Slate vs Light Yellow
-    borderColor: theme.primary, 
-    borderBottomColor: theme.shadow 
-  };
-
+  const statsCardStyle = { backgroundColor: theme.card, borderColor: theme.border };
+  const rowStyle = { backgroundColor: theme.card, borderColor: theme.border, borderBottomColor: theme.shadow };
+  const myRowStyle = { backgroundColor: theme.background === '#0F172A' ? '#334155' : '#FFFBE6', borderColor: theme.primary, borderBottomColor: theme.shadow };
   const textStyle = { color: theme.text };
-  const rankBadgeStyle = { backgroundColor: theme.border }; // Matches border color
+  const subTextStyle = { color: theme.subText };
+  const rankBadgeStyle = { backgroundColor: theme.border };
   const myBadgeStyle = { backgroundColor: theme.primary };
 
   return (
@@ -60,96 +67,97 @@ export default function CommunityScreen() {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
-      <Text style={[styles.header, headerStyle]}>LEADERBOARD</Text>
-      
-      {/* 1. Styled Stats Card (Dynamic Color) */}
-      <View style={[styles.statsCard, statsCardStyle]}>
-        <Text style={styles.statsTitle}>YOUR GLOBAL RANK</Text>
-        <Text style={styles.statsValue}>#{userRank}</Text>
-        <Text style={styles.statsSub}>Total Solved: {userScore}</Text>
-      </View>
-
-      <FlatList
-        data={leaderboard}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        renderItem={({ item, index }) => (
-          <View style={[
-            styles.rankRow, 
-            rowStyle,                    // Base Style
-            item.isUser && myRowStyle    // Override if User
-          ]}>
-            {/* Rank Circle */}
-            <View style={[
-              styles.rankBadge, 
-              rankBadgeStyle,
-              item.isUser && myBadgeStyle
-            ]}>
-              <Text style={styles.rankText}>{index + 1}</Text>
+      <View style={styles.centerWrapper}>
+        <View style={styles.webContainer}>
+          
+          <Text style={[styles.header, headerStyle]}>LEADERBOARD</Text>
+          
+          {/* --- NEW STATS GRID --- */}
+          <View style={[styles.statsCard, statsCardStyle]}>
+            <Text style={[styles.statsHeader, textStyle]}>YOUR STATS</Text>
+            
+            <View style={styles.statsGrid}>
+              <View style={styles.statItem}>
+                <Ionicons name="extension-puzzle" size={24} color={theme.primary} />
+                <Text style={[styles.statNum, textStyle]}>{stats.wordfinder}</Text>
+                <Text style={[styles.statLabel, subTextStyle]}>Words</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Ionicons name="accessibility" size={24} color={theme.danger} />
+                <Text style={[styles.statNum, textStyle]}>{stats.hangman}</Text>
+                <Text style={[styles.statLabel, subTextStyle]}>Hangman</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Ionicons name="help-buoy" size={24} color="#32CD32" />
+                <Text style={[styles.statNum, textStyle]}>{stats.trivia}</Text>
+                <Text style={[styles.statLabel, subTextStyle]}>Trivia</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Ionicons name="grid" size={24} color="#4682B4" />
+                <Text style={[styles.statNum, textStyle]}>{stats.tictactoe}</Text>
+                <Text style={[styles.statLabel, subTextStyle]}>TicTac</Text>
+              </View>
             </View>
 
-            <Text style={[styles.name, textStyle, item.isUser && { color: theme.primary }]}>
-              {item.name}
-            </Text>
-            
-            <Text style={[styles.score, { color: theme.primary }]}>
-              {item.score}
+            <View style={styles.divider} />
+            <Text style={[styles.totalScore, { color: theme.primary }]}>
+              GLOBAL RANK: #{userRank} <Text style={{color: theme.text, fontSize: 16}}>({totalScore} Wins)</Text>
             </Text>
           </View>
-        )}
-      />
+
+          <FlatList
+            data={leaderboard}
+            keyExtractor={item => item.id}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item, index }) => (
+              <View style={[
+                styles.rankRow, 
+                rowStyle, 
+                item.isUser && myRowStyle 
+              ]}>
+                <View style={[styles.rankBadge, rankBadgeStyle, item.isUser && myBadgeStyle]}>
+                  <Text style={styles.rankText}>{index + 1}</Text>
+                </View>
+
+                <Text style={[styles.name, textStyle, item.isUser && { color: theme.primary }]}>
+                  {item.name}
+                </Text>
+                
+                <Text style={[styles.score, { color: theme.primary }]}>
+                  {item.score}
+                </Text>
+              </View>
+            )}
+          />
+        </View>
+      </View>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 20, 
-  },
-  header: { 
-    fontSize: 30, 
-    fontWeight: '900', 
-    marginBottom: 20, 
-    textAlign: 'center',
-    textShadowColor: 'rgba(255,255,255,0.5)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 1,
-    letterSpacing: 1
-  },
-  
-  // --- STATS CARD ---
-  statsCard: { 
-    padding: 20, 
-    borderRadius: 20, 
-    marginBottom: 20, 
-    alignItems: 'center',
-    borderWidth: 4,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-  },
-  statsTitle: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: 'bold', marginBottom: 5 },
-  statsValue: { color: 'white', fontSize: 50, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.2)', textShadowRadius: 5 },
-  statsSub: { color: 'white', fontSize: 16, fontWeight: '600' },
+  container: { flex: 1, padding: 20 },
+  centerWrapper: { flex: 1, alignItems: 'center', width: '100%' },
+  webContainer: { width: '100%', maxWidth: 600, flex: 1 },
 
-  // --- LEADERBOARD ROW ---
-  rankRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    padding: 15, 
-    marginBottom: 12, 
-    borderRadius: 15, 
-    alignItems: 'center', 
-    // Borders
-    borderWidth: 2,
-    borderBottomWidth: 5, 
-  },
+  header: { fontSize: 30, fontWeight: '900', marginBottom: 20, textAlign: 'center', letterSpacing: 2, textShadowColor: 'rgba(255,255,255,0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 0 },
   
+  // Stats Card
+  statsCard: { padding: 20, borderRadius: 20, marginBottom: 20, borderWidth: 3, borderBottomWidth: 6, elevation: 5 },
+  statsHeader: { fontSize: 14, fontWeight: '900', textAlign: 'center', marginBottom: 15, letterSpacing: 1 },
+  statsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  statItem: { alignItems: 'center', flex: 1 },
+  statNum: { fontSize: 20, fontWeight: '900', marginTop: 5 },
+  statLabel: { fontSize: 10, fontWeight: 'bold' },
+  
+  divider: { height: 2, backgroundColor: 'rgba(0,0,0,0.1)', marginVertical: 15 },
+  totalScore: { textAlign: 'center', fontSize: 20, fontWeight: '900' },
+
+  // List
+  rankRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, marginBottom: 12, borderRadius: 15, alignItems: 'center', borderWidth: 2, borderBottomWidth: 5 },
   rankBadge: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   rankText: { fontWeight: 'bold', color: '#FFF' },
-  
   name: { fontSize: 16, fontWeight: 'bold', flex: 1, marginLeft: 15 },
   score: { fontSize: 18, fontWeight: '900' }
 });

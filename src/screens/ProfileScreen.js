@@ -1,23 +1,10 @@
 // src/screens/ProfileScreen.js
 import React, { useContext, useState, useRef, useMemo } from 'react';
-// 1. FIXED IMPORTS: Combined Platform and Alert into one line
-import { 
-  View, 
-  Text, 
-  SectionList, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ImageBackground, 
-  Image, 
-  Alert, 
-  Platform 
-} from 'react-native';
+import { View, Text, SectionList, StyleSheet, TouchableOpacity, ImageBackground, Image, Alert, Platform } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-
-// --- SHARING LIBRARIES ---
 import ViewShot from "react-native-view-shot";
 import * as Sharing from 'expo-sharing';
 
@@ -36,24 +23,34 @@ export default function ProfileScreen() {
 
     rawData.forEach(item => {
       let factObj = {};
-      let dateLabel = "Previous Collection";
+      let textContent = "";
 
       if (typeof item === 'string') {
+        textContent = item;
         factObj = { text: item, timestamp: 0 };
       } else {
+        textContent = item.text;
         const d = new Date(item.date);
         factObj = { text: item.text, timestamp: d.getTime() };
-        
+      }
+
+      // --- FILTER: HIDE GAME WINS FROM TIMELINE ---
+      if (textContent.startsWith("Solved Hangman") || textContent.startsWith("Beat TicTacToe")) {
+        return; // Skip this iteration
+      }
+      // --------------------------------------------
+
+      // Date Logic
+      let dateLabel = "Previous Collection";
+      if (factObj.timestamp > 0) {
+        const d = new Date(factObj.timestamp);
         const today = new Date();
-        const dString = d.toDateString();
-        const todayString = today.toDateString();
-        
-        if (dString === todayString) {
+        if (d.toDateString() === today.toDateString()) {
           dateLabel = "Today";
         } else {
           const yesterday = new Date(today);
           yesterday.setDate(yesterday.getDate() - 1);
-          if (dString === yesterday.toDateString()) {
+          if (d.toDateString() === yesterday.toDateString()) {
             dateLabel = "Yesterday";
           } else {
             dateLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -88,28 +85,23 @@ export default function ProfileScreen() {
 
   // --- SHARE FUNCTION ---
   const handleShare = async (factText) => {
-    // 2. WEB CHECK: Prevent crash on browser
     if (Platform.OS === 'web') {
-      Alert.alert("Web Mode", "Image sharing is only available on the mobile app.");
+      Alert.alert("Web Mode", "Sharing is only available on mobile.");
       return;
     }
-
     setSharingFact(factText);
-
     setTimeout(async () => {
       try {
         if (viewShotRef.current) {
           const uri = await viewShotRef.current.capture();
-          
           if (!(await Sharing.isAvailableAsync())) {
-            Alert.alert("Error", "Sharing is not available on this device");
+            Alert.alert("Error", "Sharing is not available");
             return;
           }
           await Sharing.shareAsync(uri);
         }
       } catch (error) {
-        console.error("Share Error:", error);
-        Alert.alert("Error", "Could not generate image.");
+        Alert.alert("Error", "Could not generate share image.");
       }
     }, 100); 
   };
@@ -127,18 +119,12 @@ export default function ProfileScreen() {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
-      
-      {/* HIDDEN SHARE TEMPLATE */}
-      {/* On Web, ViewShot might not work correctly, but the Platform check above prevents execution */}
       <View style={{ position: 'absolute', left: -2000, top: 0 }}>
         <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1.0 }} collapsable={false}>
           <View style={[styles.shareTemplate, { backgroundColor: theme.background, borderColor: theme.primary }]}>
             <View style={styles.shareHeader}>
               <Image source={require('../../assets/app-icon.png')} style={styles.shareIcon} />
-              <Image 
-                source={isDark ? require('../../assets/Title-Dark.png') : require('../../assets/Title-Light.png')} 
-                style={styles.shareTitleImg} 
-              />
+              <Image source={isDark ? require('../../assets/Title-Dark.png') : require('../../assets/Title-Light.png')} style={styles.shareTitleImg} />
             </View>
             <View style={[styles.shareContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <Text style={[styles.shareText, { color: theme.text }]}>"{sharingFact}"</Text>
@@ -148,85 +134,78 @@ export default function ProfileScreen() {
         </ViewShot>
       </View>
 
-      {/* HEADER */}
-      <View style={[styles.playerCard, playerCardStyle]}>
-        <View>
-          <Text style={[styles.greeting, { color: theme.primary }]}>PLAYER PROFILE</Text>
-          <Text style={[styles.username, textStyle]}>{user?.username}</Text>
-          <Text style={[styles.stats, subTextStyle]}>Total Solved: {(user?.solved || []).length}</Text>
-        </View>
-        <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
-          <Text style={styles.settingsText}>⚙️</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.divider}>
-        <Text style={styles.dividerText}>TIMELINE</Text>
-      </View>
-
-      <SectionList
-        sections={sections}
-        keyExtractor={(item, index) => item + index}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        stickySectionHeadersEnabled={false}
-        showsVerticalScrollIndicator={false}
-        
-        renderSectionHeader={({ section: { title } }) => (
-          <View style={styles.timelineHeader}>
-            <View style={[styles.dateBadge, { backgroundColor: theme.primary }]}>
-              <Text style={styles.dateText}>{title}</Text>
+      <View style={styles.centerWrapper}>
+        <View style={styles.webContainer}>
+          <View style={[styles.playerCard, playerCardStyle]}>
+            <View>
+              <Text style={[styles.greeting, { color: theme.primary }]}>PLAYER PROFILE</Text>
+              <Text style={[styles.username, textStyle]}>{user?.username}</Text>
+              <Text style={[styles.stats, subTextStyle]}>Facts Collected: {sections.reduce((acc, section) => acc + section.data.length, 0)}</Text>
             </View>
+            <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
+              <Text style={styles.settingsText}>⚙️</Text>
+            </TouchableOpacity>
           </View>
-        )}
 
-        renderItem={({ item, index, section }) => (
-          <View style={styles.timelineRow}>
-            <View style={styles.timelineGuide}>
-              <View style={[styles.line, { backgroundColor: theme.border }]} />
-              <View style={[styles.dot, { backgroundColor: theme.primary, borderColor: theme.background }]} />
-            </View>
+          <View style={styles.divider}>
+            <Text style={styles.dividerText}>TIMELINE</Text>
+          </View>
 
-            <View style={[styles.card, factCardStyle]}>
-              <View style={styles.cardHeader}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
-                  <Text style={[styles.factNumber, { color: theme.primary }]}>PUZZLE SOLVED</Text>
-                  <View style={[styles.badge, { backgroundColor: theme.success }]} />
+          <SectionList
+            sections={sections}
+            keyExtractor={(item, index) => item + index}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            stickySectionHeadersEnabled={false}
+            showsVerticalScrollIndicator={false}
+            renderSectionHeader={({ section: { title } }) => (
+              <View style={styles.timelineHeader}>
+                <View style={[styles.dateBadge, { backgroundColor: theme.primary }]}>
+                  <Text style={styles.dateText}>{title}</Text>
                 </View>
-                
-                <TouchableOpacity onPress={() => handleShare(item)} style={{ padding: 5 }}>
-                  <Ionicons name="share-social" size={24} color={theme.subText} />
-                </TouchableOpacity>
               </View>
-              <Text style={[styles.factText, textStyle]}>{item}</Text>
-            </View>
-          </View>
-        )}
-
-        ListEmptyComponent={
-          <View style={[styles.emptyContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.emptyText, textStyle]}>No facts yet.</Text>
-            <Text style={[styles.emptySub, subTextStyle]}>Start solving puzzles!</Text>
-          </View>
-        }
-      />
+            )}
+            renderItem={({ item }) => (
+              <View style={styles.timelineRow}>
+                <View style={styles.timelineGuide}>
+                  <View style={[styles.line, { backgroundColor: theme.border }]} />
+                  <View style={[styles.dot, { backgroundColor: theme.primary, borderColor: theme.background }]} />
+                </View>
+                <View style={[styles.card, factCardStyle]}>
+                  <View style={styles.cardHeader}>
+                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
+                      <Text style={[styles.factNumber, { color: theme.primary }]}>FACT ACQUIRED</Text>
+                      <View style={[styles.badge, { backgroundColor: theme.success }]} />
+                    </View>
+                    <TouchableOpacity onPress={() => handleShare(item)}>
+                      <Ionicons name="share-social" size={24} color={theme.subText} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[styles.factText, textStyle]}>{item}</Text>
+                </View>
+              </View>
+            )}
+            ListEmptyComponent={
+              <View style={[styles.emptyContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Text style={[styles.emptyText, textStyle]}>No facts yet.</Text>
+                <Text style={[styles.emptySub, subTextStyle]}>Start solving puzzles!</Text>
+              </View>
+            }
+          />
+        </View>
+      </View>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, paddingBottom: 0 },
-  playerCard: { 
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
-    marginBottom: 20, padding: 20, borderRadius: 20, 
-    borderWidth: 3, borderBottomWidth: 6
-  },
+  centerWrapper: { flex: 1, alignItems: 'center', width: '100%' },
+  webContainer: { width: '100%', maxWidth: 600, flex: 1 },
+  playerCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, padding: 20, borderRadius: 20, borderWidth: 3, borderBottomWidth: 6 },
   greeting: { fontSize: 12, fontWeight: 'bold', marginBottom: 2 },
   username: { fontSize: 26, fontWeight: '900', textTransform: 'uppercase' },
   stats: { marginTop: 5, fontWeight: '600' },
-  settingsBtn: { 
-    backgroundColor: '#E0E0E0', width: 50, height: 50, justifyContent: 'center', alignItems: 'center', 
-    borderRadius: 15, borderWidth: 2, borderColor: '#999', borderBottomWidth: 4, borderBottomColor: '#777'
-  },
+  settingsBtn: { backgroundColor: '#E0E0E0', width: 50, height: 50, justifyContent: 'center', alignItems: 'center', borderRadius: 15, borderWidth: 2, borderColor: '#999', borderBottomWidth: 4, borderBottomColor: '#777' },
   settingsText: { fontSize: 24 },
   divider: { alignItems: 'center', marginBottom: 15 },
   dividerText: { color: '#FFF', fontWeight: '900', fontSize: 14, textShadowColor: 'black', textShadowRadius: 2 },
@@ -245,11 +224,11 @@ const styles = StyleSheet.create({
   emptyContainer: { padding: 30, borderRadius: 20, alignItems: 'center', borderWidth: 2, borderStyle: 'dashed' },
   emptyText: { fontSize: 18, fontWeight: 'bold' },
   emptySub: { fontSize: 14, marginTop: 5 },
-  shareTemplate: { width: 400, padding: 40, alignItems: 'center', borderWidth: 10, borderRadius: 30 },
-  shareHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 30, gap: 20 },
-  shareIcon: { width: 80, height: 80, borderRadius: 20 },
-  shareTitleImg: { width: 200, height: 60, resizeMode: 'contain' },
-  shareContent: { width: '100%', padding: 30, borderRadius: 20, borderWidth: 5, marginBottom: 30, alignItems: 'center', minHeight: 200, justifyContent: 'center' },
-  shareText: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', lineHeight: 34, fontStyle: 'italic' },
-  shareFooter: { fontSize: 18, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 2 }
+  shareTemplate: { width: 400, padding: 30, alignItems: 'center', borderWidth: 10 },
+  shareHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 15 },
+  shareIcon: { width: 60, height: 60, borderRadius: 15 },
+  shareTitleImg: { width: 180, height: 50, resizeMode: 'contain' },
+  shareContent: { width: '100%', padding: 30, borderRadius: 20, borderWidth: 4, marginBottom: 20, alignItems: 'center' },
+  shareText: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', lineHeight: 32, fontStyle: 'italic' },
+  shareFooter: { fontSize: 16, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 }
 });

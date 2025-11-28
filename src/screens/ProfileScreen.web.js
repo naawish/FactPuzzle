@@ -1,52 +1,113 @@
 // src/screens/ProfileScreen.web.js
-import React, { useContext, useMemo } from 'react';
-import { View, Text, SectionList, StyleSheet, TouchableOpacity, ImageBackground, Image } from 'react-native';
+// src/screens/ProfileScreen.js
+import React, { useContext, useState, useRef, useMemo } from 'react';
+import { View, Text, SectionList, StyleSheet, TouchableOpacity, ImageBackground, Image, Alert, Platform } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-
-// NOTE: ViewShot and Sharing removed for Web compatibility
+import ViewShot from "react-native-view-shot";
+import * as Sharing from 'expo-sharing';
 
 export default function ProfileScreen() {
   const { user } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext);
+  const { theme, isDark } = useContext(ThemeContext);
   const navigation = useNavigation(); 
 
+  const [sharingFact, setSharingFact] = useState("Loading...");
+  const viewShotRef = useRef();
+
+  // --- DATA PROCESSING ---
   const sections = useMemo(() => {
     const rawData = user?.solved || [];
     const groups = {};
 
     rawData.forEach(item => {
-      let factObj = typeof item === 'string' ? { text: item, timestamp: 0 } : { text: item.text, timestamp: new Date(item.date).getTime() };
-      
-      let dateLabel = "Previous Collection";
-      if (typeof item !== 'string') {
+      let factObj = {};
+      let textContent = "";
+
+      if (typeof item === 'string') {
+        textContent = item;
+        factObj = { text: item, timestamp: 0 };
+      } else {
+        textContent = item.text;
         const d = new Date(item.date);
-        if (d.toDateString() === new Date().toDateString()) dateLabel = "Today";
-        else dateLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        factObj = { text: item.text, timestamp: d.getTime() };
       }
 
-      if (!groups[dateLabel]) groups[dateLabel] = [];
+      // --- FILTER: HIDE GAME WINS FROM TIMELINE ---
+      if (textContent.startsWith("Solved Hangman") || textContent.startsWith("Beat TicTacToe")) {
+        return; // Skip this iteration
+      }
+      // --------------------------------------------
+
+      // Date Logic
+      let dateLabel = "Previous Collection";
+      if (factObj.timestamp > 0) {
+        const d = new Date(factObj.timestamp);
+        const today = new Date();
+        if (d.toDateString() === today.toDateString()) {
+          dateLabel = "Today";
+        } else {
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          if (d.toDateString() === yesterday.toDateString()) {
+            dateLabel = "Yesterday";
+          } else {
+            dateLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          }
+        }
+      }
+
+      if (!groups[dateLabel]) {
+        groups[dateLabel] = [];
+      }
       groups[dateLabel].push(factObj);
     });
 
     const sortedKeys = Object.keys(groups).sort((a, b) => {
       if (a === 'Today') return -1; 
       if (b === 'Today') return 1;
+      if (a === 'Yesterday') return -1; 
+      if (b === 'Yesterday') return 1;
+      if (a === 'Previous Collection') return 1; 
+      if (b === 'Previous Collection') return -1;
       return new Date(b) - new Date(a); 
     });
 
-    return sortedKeys.map(date => ({
-      title: date,
-      data: groups[date].sort((a, b) => b.timestamp - a.timestamp).map(i => i.text) 
-    }));
+    return sortedKeys.map(date => {
+      const sortedItems = groups[date].sort((a, b) => b.timestamp - a.timestamp);
+      return {
+        title: date,
+        data: sortedItems.map(i => i.text) 
+      };
+    });
   }, [user?.solved]);
 
-  const handleShare = () => {
-    alert("Sharing is only available on the mobile app!");
+  // --- SHARE FUNCTION ---
+  const handleShare = async (factText) => {
+    if (Platform.OS === 'web') {
+      Alert.alert("Web Mode", "Sharing is only available on mobile.");
+      return;
+    }
+    setSharingFact(factText);
+    setTimeout(async () => {
+      try {
+        if (viewShotRef.current) {
+          const uri = await viewShotRef.current.capture();
+          if (!(await Sharing.isAvailableAsync())) {
+            Alert.alert("Error", "Sharing is not available");
+            return;
+          }
+          await Sharing.shareAsync(uri);
+        }
+      } catch (error) {
+        Alert.alert("Error", "Could not generate share image.");
+      }
+    }, 100); 
   };
 
+  // Styles
   const playerCardStyle = { backgroundColor: theme.card, borderColor: theme.primary, borderBottomColor: theme.shadow };
   const factCardStyle = { backgroundColor: theme.card, borderColor: theme.border, borderBottomColor: theme.shadow };
   const textStyle = { color: theme.text };
@@ -59,58 +120,79 @@ export default function ProfileScreen() {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
-      {/* WEB CONTAINER */}
-      <View style={styles.webContainer}>
-        
-        {/* HEADER */}
-        <View style={[styles.playerCard, playerCardStyle]}>
-          <View>
-            <Text style={[styles.greeting, { color: theme.primary }]}>PLAYER PROFILE</Text>
-            <Text style={[styles.username, textStyle]}>{user?.username}</Text>
-            <Text style={[styles.stats, subTextStyle]}>Total Solved: {(user?.solved || []).length}</Text>
+      <View style={{ position: 'absolute', left: -2000, top: 0 }}>
+        <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1.0 }} collapsable={false}>
+          <View style={[styles.shareTemplate, { backgroundColor: theme.background, borderColor: theme.primary }]}>
+            <View style={styles.shareHeader}>
+              <Image source={require('../../assets/app-icon.png')} style={styles.shareIcon} />
+              <Image source={isDark ? require('../../assets/Title-Dark.png') : require('../../assets/Title-Light.png')} style={styles.shareTitleImg} />
+            </View>
+            <View style={[styles.shareContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={[styles.shareText, { color: theme.text }]}>"{sharingFact}"</Text>
+            </View>
+            <Text style={[styles.shareFooter, { color: theme.primary }]}>Play Fact Puzzle!</Text>
           </View>
-          <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
-            <Text style={styles.settingsText}>⚙️</Text>
-          </TouchableOpacity>
-        </View>
+        </ViewShot>
+      </View>
 
-        <View style={styles.divider}>
-          <Text style={styles.dividerText}>TIMELINE</Text>
-        </View>
-
-        <SectionList
-          sections={sections}
-          keyExtractor={(item, index) => item + index}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          stickySectionHeadersEnabled={false}
-          renderSectionHeader={({ section: { title } }) => (
-            <View style={styles.timelineHeader}>
-              <View style={[styles.dateBadge, { backgroundColor: theme.primary }]}>
-                <Text style={styles.dateText}>{title}</Text>
-              </View>
+      <View style={styles.centerWrapper}>
+        <View style={styles.webContainer}>
+          <View style={[styles.playerCard, playerCardStyle]}>
+            <View>
+              <Text style={[styles.greeting, { color: theme.primary }]}>PLAYER PROFILE</Text>
+              <Text style={[styles.username, textStyle]}>{user?.username}</Text>
+              <Text style={[styles.stats, subTextStyle]}>Facts Collected: {sections.reduce((acc, section) => acc + section.data.length, 0)}</Text>
             </View>
-          )}
-          renderItem={({ item }) => (
-            <View style={styles.timelineRow}>
-              <View style={styles.timelineGuide}>
-                <View style={[styles.line, { backgroundColor: theme.border }]} />
-                <View style={[styles.dot, { backgroundColor: theme.primary, borderColor: theme.background }]} />
-              </View>
-              <View style={[styles.card, factCardStyle]}>
-                <View style={styles.cardHeader}>
-                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
-                    <Text style={[styles.factNumber, { color: theme.primary }]}>PUZZLE SOLVED</Text>
-                    <View style={[styles.badge, { backgroundColor: theme.success }]} />
-                  </View>
-                  <TouchableOpacity onPress={handleShare} style={{cursor: 'pointer'}}>
-                    <Ionicons name="share-social" size={24} color={theme.subText} />
-                  </TouchableOpacity>
+            <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
+              <Text style={styles.settingsText}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.divider}>
+            <Text style={styles.dividerText}>TIMELINE</Text>
+          </View>
+
+          <SectionList
+            sections={sections}
+            keyExtractor={(item, index) => item + index}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            stickySectionHeadersEnabled={false}
+            showsVerticalScrollIndicator={false}
+            renderSectionHeader={({ section: { title } }) => (
+              <View style={styles.timelineHeader}>
+                <View style={[styles.dateBadge, { backgroundColor: theme.primary }]}>
+                  <Text style={styles.dateText}>{title}</Text>
                 </View>
-                <Text style={[styles.factText, textStyle]}>{item}</Text>
               </View>
-            </View>
-          )}
-        />
+            )}
+            renderItem={({ item }) => (
+              <View style={styles.timelineRow}>
+                <View style={styles.timelineGuide}>
+                  <View style={[styles.line, { backgroundColor: theme.border }]} />
+                  <View style={[styles.dot, { backgroundColor: theme.primary, borderColor: theme.background }]} />
+                </View>
+                <View style={[styles.card, factCardStyle]}>
+                  <View style={styles.cardHeader}>
+                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
+                      <Text style={[styles.factNumber, { color: theme.primary }]}>FACT ACQUIRED</Text>
+                      <View style={[styles.badge, { backgroundColor: theme.success }]} />
+                    </View>
+                    <TouchableOpacity onPress={() => handleShare(item)}>
+                      <Ionicons name="share-social" size={24} color={theme.subText} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[styles.factText, textStyle]}>{item}</Text>
+                </View>
+              </View>
+            )}
+            ListEmptyComponent={
+              <View style={[styles.emptyContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Text style={[styles.emptyText, textStyle]}>No facts yet.</Text>
+                <Text style={[styles.emptySub, subTextStyle]}>Start solving puzzles!</Text>
+              </View>
+            }
+          />
+        </View>
       </View>
     </ImageBackground>
   );

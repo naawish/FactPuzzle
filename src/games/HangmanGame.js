@@ -2,19 +2,30 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, ImageBackground, Alert, ScrollView } from 'react-native';
 import axios from 'axios';
+import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
 
-// YOUR API KEYS
-const FACTS_API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR'; 
+// API CONFIG
+const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR'; 
+
+// --- OFFLINE BACKUP LIST ---
+// If the API fails (no internet/CORS), we use these words.
+const FALLBACK_WORDS = [
+  "PUZZLE", "REACT", "NATIVE", "CODING", "JAVASCRIPT", "PYTHON", "DATABASE",
+  "SERVER", "MOBILE", "DESIGN", "PIXEL", "VECTOR", "SYNTAX", "DEBUG", "DEPLOY",
+  "WIDGET", "SCREEN", "BUTTON", "INPUT", "STYLE", "LAYOUT", "LOGIC", "ASYNC"
+];
 
 export default function HangmanGame() {
+  const { saveSolvedPuzzle } = useContext(AuthContext);
   const { theme } = useContext(ThemeContext); 
 
   const [word, setWord] = useState('');
   const [loading, setLoading] = useState(true);
   const [guessedLetters, setGuessedLetters] = useState(new Set());
-  const [lives, setLives] = useState(6); // Head, Body, L-Arm, R-Arm, L-Leg, R-Leg
-  const [gameStatus, setGameStatus] = useState('playing'); // 'playing', 'won', 'lost'
+  const [lives, setLives] = useState(6);
+  const [gameStatus, setGameStatus] = useState('playing'); 
+  const [errorVisible, setErrorVisible] = useState(false);
 
   useEffect(() => {
     fetchWord();
@@ -22,21 +33,43 @@ export default function HangmanGame() {
 
   const fetchWord = async () => {
     setLoading(true);
+    setErrorVisible(false);
     setGameStatus('playing');
     setGuessedLetters(new Set());
     setLives(6);
     
     try {
-      // Fetch a random word
       const response = await axios.get('https://api.api-ninjas.com/v1/randomword', {
-        headers: { 'X-Api-Key': FACTS_API_KEY }
+        headers: { 'X-Api-Key': API_KEY },
+        timeout: 5000 // Stop waiting after 5 seconds
       });
-      // Ensure word is uppercase for comparison
-      const randomWord = response.data.word.toUpperCase();
-      setWord(randomWord);
+      
+      let rawWord = '';
+      if (response.data.word) {
+        rawWord = response.data.word;
+      } else if (Array.isArray(response.data) && response.data.length > 0) {
+        rawWord = response.data[0];
+      }
+
+      if (!rawWord) throw new Error("No word returned");
+
+      const cleanWord = rawWord.replace(/[^a-zA-Z]/g, '').toUpperCase();
+
+      if (cleanWord.length < 3) {
+        // Retry logic logic here if needed, or fallback
+        throw new Error("Word too short");
+      }
+
+      setWord(cleanWord);
       setLoading(false);
+
     } catch (error) {
-      Alert.alert("Error", "Could not fetch a word.");
+      console.log("API Error (Switching to Offline Mode):", error.message);
+      
+      // --- FALLBACK LOGIC ---
+      // Instead of showing error, pick a random local word
+      const randomFallback = FALLBACK_WORDS[Math.floor(Math.random() * FALLBACK_WORDS.length)];
+      setWord(randomFallback);
       setLoading(false);
     }
   };
@@ -53,45 +86,43 @@ export default function HangmanGame() {
       setLives(newLives);
       if (newLives === 0) setGameStatus('lost');
     } else {
-      // Check for win
       const isWon = word.split('').every(char => newGuessed.has(char));
-      if (isWon) setGameStatus('won');
+      if (isWon) {
+        setGameStatus('won');
+        saveSolvedPuzzle(`Solved Hangman: ${word}`); 
+      }
     }
   };
 
   // --- RENDERERS ---
-
   const renderStickFigure = () => {
-    // Dynamic colors based on theme
-    const figureColor = theme.text;
-    const ropeColor = theme.primary;
+    const color = theme.text;
+    const ropeColor = theme.primary; 
 
     return (
       <View style={styles.gallowsContainer}>
-        {/* The Gallows */}
-        <View style={[styles.gallowBase, { backgroundColor: ropeColor }]} />
-        <View style={[styles.gallowPole, { backgroundColor: ropeColor }]} />
-        <View style={[styles.gallowTop, { backgroundColor: ropeColor }]} />
-        <View style={[styles.gallowRope, { backgroundColor: ropeColor }]} />
+        <View style={[styles.barBase, { backgroundColor: ropeColor }]} />
+        <View style={[styles.barPole, { backgroundColor: ropeColor }]} />
+        <View style={[styles.barTop, { backgroundColor: ropeColor }]} />
+        <View style={[styles.rope, { backgroundColor: ropeColor }]} />
 
-        {/* The Man (Opacity 0 if life not lost yet) */}
-        {lives < 6 && <View style={[styles.head, { borderColor: figureColor }]} />} 
-        {lives < 5 && <View style={[styles.body, { backgroundColor: figureColor }]} />}
-        {lives < 4 && <View style={[styles.leftArm, { backgroundColor: figureColor }]} />}
-        {lives < 3 && <View style={[styles.rightArm, { backgroundColor: figureColor }]} />}
-        {lives < 2 && <View style={[styles.leftLeg, { backgroundColor: figureColor }]} />}
-        {lives < 1 && <View style={[styles.rightLeg, { backgroundColor: figureColor }]} />}
+        {lives < 6 && <View style={[styles.head, { borderColor: color }]} />} 
+        {lives < 5 && <View style={[styles.body, { backgroundColor: color }]} />}
+        {lives < 4 && <View style={[styles.armL, { backgroundColor: color }]} />}
+        {lives < 3 && <View style={[styles.armR, { backgroundColor: color }]} />}
+        {lives < 2 && <View style={[styles.legL, { backgroundColor: color }]} />}
+        {lives < 1 && <View style={[styles.legR, { backgroundColor: color }]} />}
       </View>
     );
   };
 
   const renderWord = () => {
     return (
-      <View style={styles.wordContainer}>
+      <View style={styles.wordRow}>
         {word.split('').map((char, index) => (
-          <View key={index} style={[styles.charBox, { borderBottomColor: theme.text }]}>
+          <View key={index} style={[styles.charSlot, { borderBottomColor: theme.text }]}>
             <Text style={[styles.charText, { color: theme.text }]}>
-              {guessedLetters.has(char) || gameStatus === 'lost' ? char : ''}
+              {(guessedLetters.has(char) || gameStatus === 'lost') ? char : ''}
             </Text>
           </View>
         ))}
@@ -100,59 +131,48 @@ export default function HangmanGame() {
   };
 
   const renderKeyboard = () => {
-    const rows = [
-      "QWERTYUIOP".split(''),
-      "ASDFGHJKL".split(''),
-      "ZXCVBNM".split('')
-    ];
-
+    const keys = "QWERTYUIOPASDFGHJKLZXCVBNM".split('');
     return (
-      <View style={styles.keyboardContainer}>
-        {rows.map((row, rowIndex) => (
-          <View key={rowIndex} style={styles.keyboardRow}>
-            {row.map((letter) => {
-              const isSelected = guessedLetters.has(letter);
-              const isCorrect = word.includes(letter);
-              
-              // Dynamic Key Styling
-              let keyBg = theme.card;
-              let keyBorder = theme.border;
-              let textColor = theme.text;
+      <View style={styles.keyboard}>
+        {keys.map((char) => {
+          const isSelected = guessedLetters.has(char);
+          const isCorrect = word.includes(char);
+          
+          let btnColor = theme.card;
+          let txtColor = theme.text;
+          let borderColor = theme.border;
 
-              if (isSelected) {
-                if (isCorrect) {
-                  keyBg = theme.success;
-                  keyBorder = theme.success;
-                  textColor = '#FFF';
-                } else {
-                  keyBg = theme.background === '#0F172A' ? '#333' : '#ccc'; // Dimmed
-                  keyBorder = 'transparent';
-                  textColor = '#777';
-                }
-              }
+          if (isSelected) {
+            if (isCorrect) {
+              btnColor = theme.success; 
+              borderColor = theme.success;
+              txtColor = '#FFF';
+            } else {
+              btnColor = theme.background === '#0F172A' ? '#333' : '#CCC'; 
+              borderColor = 'transparent';
+              txtColor = '#888';
+            }
+          }
 
-              return (
-                <TouchableOpacity
-                  key={letter}
-                  style={[styles.key, { backgroundColor: keyBg, borderColor: keyBorder }]}
-                  onPress={() => handleGuess(letter)}
-                  disabled={isSelected || gameStatus !== 'playing'}
-                >
-                  <Text style={[styles.keyText, { color: textColor }]}>{letter}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ))}
+          return (
+            <TouchableOpacity
+              key={char}
+              style={[styles.key, { backgroundColor: btnColor, borderColor: borderColor }]}
+              onPress={() => handleGuess(char)}
+              disabled={isSelected || gameStatus !== 'playing'}
+            >
+              <Text style={[styles.keyText, { color: txtColor }]}>{char}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     );
   };
 
-  // Dynamic Styles
+  // Styles Helpers
   const cardStyle = { backgroundColor: theme.card, borderColor: theme.border };
   const modalStyle = { backgroundColor: theme.card, borderColor: theme.border, borderBottomColor: theme.shadow };
-  const modalText = { color: theme.text };
-  const primaryBtn = { backgroundColor: theme.primary, borderBottomColor: theme.shadow };
+  const btnStyle = { backgroundColor: theme.primary, borderBottomColor: theme.shadow };
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.primary}/></View>;
 
@@ -163,49 +183,61 @@ export default function HangmanGame() {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
-      {/* Game Area */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
-        {/* 1. The Drawing */}
-        <View style={[styles.drawingCard, cardStyle]}>
-          {renderStickFigure()}
+        <View style={styles.gameWrapper}>
+          <View style={[styles.drawCard, cardStyle]}>
+            {renderStickFigure()}
+          </View>
+
+          {renderWord()}
+
+          <Text style={[styles.status, { color: theme.subText }]}>
+            LIVES: <Text style={{ color: theme.danger, fontWeight: 'bold' }}>{lives}</Text>
+          </Text>
+
+          {renderKeyboard()}
         </View>
-
-        {/* 2. The Word */}
-        {renderWord()}
-
-        {/* 3. Status Text */}
-        <Text style={[styles.statusText, { color: theme.subText }]}>
-          LIVES REMAINING: <Text style={{ color: theme.danger, fontWeight: 'bold' }}>{lives}</Text>
-        </Text>
-
-        {/* 4. Keyboard */}
-        {renderKeyboard()}
-
       </ScrollView>
 
-      {/* GAME OVER / WIN MODAL */}
-      <Modal 
-        visible={gameStatus !== 'playing'} 
-        transparent={true} 
-        animationType="fade"
-      >
+      {/* --- ERROR MODAL (Only shows if something goes catastrophically wrong with fallback) --- */}
+      <Modal visible={errorVisible} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, modalStyle]}>
-            <Text style={[styles.modalTitle, { color: gameStatus === 'won' ? theme.success : theme.danger }]}>
-              {gameStatus === 'won' ? "YOU SURVIVED!" : "GAME OVER"}
+            <Text style={[styles.modalTitle, { color: theme.danger }]}>ERROR</Text>
+            <View style={styles.modalContent}>
+              <Text style={[styles.label, { color: theme.text, textAlign: 'center' }]}>
+                Something went wrong.
+              </Text>
+            </View>
+            <TouchableOpacity style={[styles.nextBtn, btnStyle]} onPress={fetchWord}>
+              <Text style={styles.btnText}>RETRY</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* GAME OVER / WIN MODAL */}
+      <Modal visible={gameStatus !== 'playing'} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, modalStyle]}>
+            <Text style={[
+              styles.modalTitle, 
+              { color: gameStatus === 'won' ? theme.success : theme.danger }
+            ]}>
+              {gameStatus === 'won' ? "YOU ESCAPED!" : "GAME OVER"}
             </Text>
             
             <View style={styles.modalContent}>
-              <Text style={[styles.modalLabel, { color: theme.subText }]}>THE WORD WAS:</Text>
-              <Text style={[styles.modalWord, modalText]}>{word}</Text>
+              <Text style={[styles.label, { color: theme.subText }]}>THE WORD WAS:</Text>
+              <Text style={[styles.revealWord, { color: theme.text }]}>{word}</Text>
             </View>
 
             <TouchableOpacity 
-              style={[styles.nextBtn, primaryBtn]} 
+              style={[styles.nextBtn, btnStyle]} 
               onPress={fetchWord}
             >
-              <Text style={styles.nextBtnText}>PLAY AGAIN</Text>
+              <Text style={styles.btnText}>PLAY AGAIN</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -218,54 +250,48 @@ export default function HangmanGame() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { flexGrow: 1, padding: 20, alignItems: 'center' },
-
-  // Draw Area
-  drawingCard: {
-    width: '100%',
-    height: 200,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderBottomWidth: 6,
-    marginBottom: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5
-  },
-  // Stick Figure CSS
-  gallowsContainer: { width: 150, height: 180, position: 'relative' },
-  gallowBase: { position: 'absolute', bottom: 10, left: 10, width: 100, height: 5, borderRadius: 2 },
-  gallowPole: { position: 'absolute', bottom: 10, left: 30, width: 5, height: 150, borderRadius: 2 },
-  gallowTop: { position: 'absolute', top: 20, left: 30, width: 80, height: 5, borderRadius: 2 },
-  gallowRope: { position: 'absolute', top: 20, right: 40, width: 3, height: 20 },
+  scrollContent: { flexGrow: 1, padding: 20 },
   
-  head: { position: 'absolute', top: 40, right: 26, width: 30, height: 30, borderRadius: 15, borderWidth: 3 },
-  body: { position: 'absolute', top: 70, right: 40, width: 3, height: 50 },
-  leftArm: { position: 'absolute', top: 80, right: 42, width: 30, height: 3, transform: [{ rotate: '-30deg' }] },
-  rightArm: { position: 'absolute', top: 80, right: 10, width: 30, height: 3, transform: [{ rotate: '30deg' }] },
-  leftLeg: { position: 'absolute', top: 120, right: 42, width: 30, height: 3, transform: [{ rotate: '-60deg' }] },
-  rightLeg: { position: 'absolute', top: 120, right: 10, width: 30, height: 3, transform: [{ rotate: '60deg' }] },
+  gameWrapper: { width: '100%', maxWidth: 500, alignSelf: 'center', alignItems: 'center' },
 
-  // Word Area
-  wordContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginBottom: 30 },
-  charBox: { width: 30, height: 40, borderBottomWidth: 3, justifyContent: 'center', alignItems: 'center' },
-  charText: { fontSize: 24, fontWeight: 'bold' },
+  // Drawing
+  drawCard: {
+    width: '100%', height: 220, borderRadius: 20, borderWidth: 3, borderBottomWidth: 6,
+    marginBottom: 30, justifyContent: 'center', alignItems: 'center', elevation: 5
+  },
+  gallowsContainer: { width: 120, height: 160, position: 'relative' },
+  barBase: { position: 'absolute', bottom: 0, left: 0, width: 80, height: 5, borderRadius: 3 },
+  barPole: { position: 'absolute', bottom: 0, left: 20, width: 5, height: 160, borderRadius: 3 },
+  barTop: { position: 'absolute', top: 0, left: 20, width: 80, height: 5, borderRadius: 3 },
+  rope: { position: 'absolute', top: 0, right: 20, width: 3, height: 30 },
+  
+  head: { position: 'absolute', top: 30, right: 6, width: 30, height: 30, borderRadius: 15, borderWidth: 3 },
+  body: { position: 'absolute', top: 60, right: 20, width: 3, height: 50 },
+  armL: { position: 'absolute', top: 70, right: 22, width: 25, height: 3, transform: [{ rotate: '-30deg' }] },
+  armR: { position: 'absolute', top: 70, right: -2, width: 25, height: 3, transform: [{ rotate: '30deg' }] },
+  legL: { position: 'absolute', top: 105, right: 22, width: 25, height: 3, transform: [{ rotate: '-45deg' }] },
+  legR: { position: 'absolute', top: 105, right: -2, width: 25, height: 3, transform: [{ rotate: '45deg' }] },
 
-  statusText: { fontSize: 14, fontWeight: '900', letterSpacing: 1, marginBottom: 20 },
+  // Word
+  wordRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 20 },
+  charSlot: { minWidth: 25, borderBottomWidth: 3, alignItems: 'center', paddingBottom: 2 },
+  charText: { fontSize: 24, fontWeight: '900', letterSpacing: 2 },
+
+  status: { fontSize: 14, fontWeight: '900', letterSpacing: 1, marginBottom: 20 },
 
   // Keyboard
-  keyboardContainer: { width: '100%', alignItems: 'center' },
-  keyboardRow: { flexDirection: 'row', marginBottom: 10, gap: 5 },
-  key: { width: 32, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 6, borderWidth: 1, borderBottomWidth: 3 },
+  keyboard: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
+  key: { width: 34, height: 42, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderBottomWidth: 3 },
   keyText: { fontSize: 16, fontWeight: 'bold' },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  modalCard: { width: '85%', borderRadius: 30, padding: 30, alignItems: 'center', borderWidth: 4, borderBottomWidth: 8, elevation: 20 },
-  modalTitle: { fontSize: 28, fontWeight: '900', marginBottom: 20, letterSpacing: 1 },
+  modalCard: { width: '85%', maxWidth: 400, borderRadius: 30, padding: 30, alignItems: 'center', borderWidth: 4, borderBottomWidth: 8, elevation: 20 },
+  modalTitle: { fontSize: 28, fontWeight: '900', marginBottom: 20, letterSpacing: 1, textAlign: 'center' },
   modalContent: { marginBottom: 30, alignItems: 'center' },
-  modalLabel: { fontSize: 12, fontWeight: 'bold', marginBottom: 10 },
-  modalWord: { fontSize: 24, fontWeight: '900', letterSpacing: 2 },
-  nextBtn: { paddingVertical: 15, paddingHorizontal: 40, borderRadius: 50, borderBottomWidth: 6 },
-  nextBtnText: { color: '#FFF', fontWeight: '900', fontSize: 18 }
+  label: { fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
+  revealWord: { fontSize: 28, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
+  
+  nextBtn: { paddingVertical: 15, paddingHorizontal: 40, borderRadius: 50, borderBottomWidth: 6, width: '100%', alignItems: 'center' },
+  btnText: { color: '#FFF', fontWeight: '900', fontSize: 18, letterSpacing: 1 }
 });

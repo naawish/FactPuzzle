@@ -66,11 +66,11 @@ Account Management: Edit username/email and change password securely.
 Feedback System: Users can submit feedback which is stored in the database.
 5. Screen Previews
 Login & Sign Up	Game Hub (Light & Dark)
-<img src="assets/screenshots/login.jpg" width="200" /> <img src="assets/screenshots/sign_up.jpg" width="200" />	<img src="assets/screenshots/Homescreen.jpg" width="200" /> <img src="assets/screenshots/Homescreen_darkmode.jpg" width="200" />
+<img src="screenshots/login.jpg" width="200" /> <img src="screenshots/sign_up.jpg" width="200" />	<img src="screenshots/Homescreen.jpg" width="200" /> <img src="screenshots/Homescreen_darkmode.jpg" width="200" />
 Profile & Sharing	Leaderboard & Settings
-<img src="assets/screenshots/Profile_screen.jpg" width="200" /> <img src="assets/screenshots/fact%20share.PNG" width="200" />	<img src="assets/screenshots/Leaderboard.jpg" width="200" /> <img src="assets/screenshots/settings.jpg" width="200" />
+<img src="screenshots/Profile_screen.jpg" width="200" /> <img src="screenshots/fact%20share.PNG" width="200" />	<img src="screenshots/Leaderboard.jpg" width="200" /> <img src="screenshots/settings.jpg" width="200" />
 Dark Mode Variations
-<img src="assets/screenshots/Profile_darkmode.jpg" width="200" /> <img src="assets/screenshots/Leaderboard_darkmode.jpg" width="200" />
+<img src="screenshots/Profile_darkmode.jpg" width="200" /> <img src="screenshots/Leaderboard_darkmode.jpg" width="200" />
 6. Known Issues & Future Improvements
 
 Known Issues

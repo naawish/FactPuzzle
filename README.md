@@ -98,6 +98,8 @@ Future Improvements
 Cloud Migration: Move the SQLite database to a cloud provider (like Firebase Firestore or Supabase) to allow users to log in from any network (e.g., 4G/5G) without needing to be on the same Wi-Fi as the host computer.
 Push Notifications: Implement daily reminders to play a puzzle using Expo Notifications.
 Avatar Customization: Allow users to upload profile pictures or select avatars for the leaderboard.
+
+
 7. Submission Checklist
 
 Fully working app (Android/iOS/Web).

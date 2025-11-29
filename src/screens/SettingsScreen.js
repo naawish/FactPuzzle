@@ -1,28 +1,12 @@
 // src/screens/SettingsScreen.js
 import React, { useContext, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Switch, 
-  Modal, 
-  ScrollView, 
-  ImageBackground, 
-  TextInput, 
-  Alert, 
-  KeyboardAvoidingView, 
-  Platform,
-  Image 
-} from 'react-native';
-import * as ImagePicker from 'expo-image-picker'; // Image Picker Import
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Modal, ScrollView, ImageBackground, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 export default function SettingsScreen() {
   const { user, logout, updateProfile, changePassword } = useContext(AuthContext);
   
-  // Access Theme Data
   const { 
     theme, 
     useSystemTheme, 
@@ -35,48 +19,30 @@ export default function SettingsScreen() {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  
+  // Feedback States
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [feedbackSuccessModalVisible, setFeedbackSuccessModalVisible] = useState(false); // <--- NEW STATE
+  const [feedbackText, setFeedbackText] = useState('');
+
   const [notifications, setNotifications] = useState(true);
 
   // Form States
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
-  const [editImage, setEditImage] = useState(null); // State for new image upload
-
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
-
-  // --- IMAGE PICKER HANDLER ---
-  const pickImage = async () => {
-    // No permissions request is necessary for launching the image library
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1], // Square crop for profile pics
-      quality: 0.5,   // Reduce quality to save database space
-      base64: true,   // We need the base64 string to save to local JSON server
-    });
-
-    if (!result.canceled) {
-      // Save the base64 string (with data prefix)
-      setEditImage('data:image/jpeg;base64,' + result.assets[0].base64);
-    }
-  };
 
   // --- Handlers ---
   const openProfileModal = () => {
     setEditName(user?.username || '');
     setEditEmail(user?.email || '');
-    setEditImage(user?.profileImage || null); // Load current image into state
     setProfileModalVisible(true);
   };
 
   const handleSaveProfile = async () => {
-    if (!editName || !editEmail) { 
-      Alert.alert("Error", "Fields cannot be empty"); 
-      return; 
-    }
-    // Pass the new image (or existing one) to the context
-    await updateProfile(editName, editEmail, editImage);
+    if (!editName || !editEmail) { Alert.alert("Error", "Fields cannot be empty"); return; }
+    await updateProfile(editName, editEmail);
     setProfileModalVisible(false);
     Alert.alert("Success", "Profile updated successfully!");
   };
@@ -88,10 +54,7 @@ export default function SettingsScreen() {
   };
 
   const handleSavePassword = async () => {
-    if (!currentPass || !newPass) { 
-      Alert.alert("Error", "Please fill in all fields"); 
-      return; 
-    }
+    if (!currentPass || !newPass) { Alert.alert("Error", "Please fill in all fields"); return; }
     const success = await changePassword(currentPass, newPass);
     if (success) {
       setPasswordModalVisible(false);
@@ -99,6 +62,20 @@ export default function SettingsScreen() {
     } else {
       Alert.alert("Error", "Current password is incorrect.");
     }
+  };
+
+  // UPDATED: Send Feedback Handler
+  const handleSendFeedback = () => {
+    if (!feedbackText.trim()) {
+      Alert.alert("Empty", "Please write some feedback first!");
+      return;
+    }
+    // Simulate API call
+    console.log("Feedback sent:", feedbackText);
+    
+    setFeedbackModalVisible(false); // Close Input Modal
+    setFeedbackText('');
+    setFeedbackSuccessModalVisible(true); // Open 3D Success Modal
   };
 
   const confirmLogout = () => {
@@ -147,17 +124,6 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
             
-            {/* Profile Image Display */}
-            <View style={styles.profileHeader}>
-              <View style={[styles.avatarContainer, { borderColor: theme.primary }]}>
-                {user?.profileImage ? (
-                  <Image source={{ uri: user.profileImage }} style={styles.avatar} />
-                ) : (
-                  <Image source={require('../../assets/app-icon.png')} style={styles.avatarPlaceholder} />
-                )}
-              </View>
-            </View>
-
             <View style={styles.row}>
               <Text style={[styles.label, textStyle]}>USERNAME</Text>
               <Text style={[styles.value, subTextStyle]}>{user?.username}</Text>
@@ -193,7 +159,6 @@ export default function SettingsScreen() {
                 value={useSystemTheme} 
                 onValueChange={toggleSystemTheme} 
                 trackColor={{ false: "#767577", true: theme.primary }}
-                thumbColor={useSystemTheme ? "#FFF" : "#f4f3f4"}
               />
             </View>
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
@@ -204,7 +169,6 @@ export default function SettingsScreen() {
                 value={isDarkMode} 
                 onValueChange={toggleDarkMode}
                 trackColor={{ false: "#767577", true: theme.primary }}
-                thumbColor={isDarkMode ? "#FFF" : "#f4f3f4"}
               />
             </View>
           </View>
@@ -218,9 +182,19 @@ export default function SettingsScreen() {
                 value={notifications} 
                 onValueChange={setNotifications}
                 trackColor={{ false: "#767577", true: theme.primary }}
-                thumbColor={notifications ? "#FFF" : "#f4f3f4"}
               />
             </View>
+          </View>
+
+          {/* --- SUPPORT CARD --- */}
+          <View style={[styles.gameCard, cardStyle]}>
+            <Text style={[styles.cardHeader, headerStyle]}>SUPPORT</Text>
+            <View style={styles.row}>
+              <Text style={[styles.label, textStyle]}>HAVE A SUGGESTION?</Text>
+            </View>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => setFeedbackModalVisible(true)}>
+              <Text style={styles.actionBtnText}>GIVE FEEDBACK</Text>
+            </TouchableOpacity>
           </View>
 
           {/* --- LOGOUT BUTTON --- */}
@@ -236,37 +210,10 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, cardStyle]}>
             <Text style={[styles.modalTitle, headerStyle]}>EDIT PROFILE</Text>
-            
-            {/* Image Picker UI */}
-            <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
-              <View style={[styles.avatarEditContainer, { borderColor: theme.primary }]}>
-                {editImage ? (
-                  <Image source={{ uri: editImage }} style={styles.avatar} />
-                ) : (
-                  // Fallback if no image set yet
-                  <Text style={{ color: theme.subText, fontSize: 10 }}>ADD PHOTO</Text>
-                )}
-              </View>
-              <Text style={[styles.changePhotoText, { color: theme.primary }]}>CHANGE PHOTO</Text>
-            </TouchableOpacity>
-
             <Text style={[styles.inputLabel, textStyle]}>USERNAME</Text>
-            <TextInput 
-              style={[styles.input, inputStyle]} 
-              value={editName} 
-              onChangeText={setEditName} 
-              placeholderTextColor={theme.subText}
-            />
-
+            <TextInput style={[styles.input, inputStyle]} value={editName} onChangeText={setEditName} placeholderTextColor="#999"/>
             <Text style={[styles.inputLabel, textStyle]}>EMAIL</Text>
-            <TextInput 
-              style={[styles.input, inputStyle]} 
-              value={editEmail} 
-              onChangeText={setEditEmail} 
-              autoCapitalize="none" 
-              placeholderTextColor={theme.subText}
-            />
-
+            <TextInput style={[styles.input, inputStyle]} value={editEmail} onChangeText={setEditEmail} autoCapitalize="none" placeholderTextColor="#999"/>
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setProfileModalVisible(false)}>
                 <Text style={styles.cancelText}>CANCEL</Text>
@@ -284,13 +231,10 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, cardStyle]}>
             <Text style={[styles.modalTitle, headerStyle]}>CHANGE PASSWORD</Text>
-            
             <Text style={[styles.inputLabel, textStyle]}>CURRENT PASSWORD</Text>
-            <TextInput style={[styles.input, inputStyle]} value={currentPass} onChangeText={setCurrentPass} secureTextEntry placeholderTextColor={theme.subText}/>
-
+            <TextInput style={[styles.input, inputStyle]} value={currentPass} onChangeText={setCurrentPass} secureTextEntry placeholderTextColor="#999"/>
             <Text style={[styles.inputLabel, textStyle]}>NEW PASSWORD</Text>
-            <TextInput style={[styles.input, inputStyle]} value={newPass} onChangeText={setNewPass} secureTextEntry placeholderTextColor={theme.subText}/>
-
+            <TextInput style={[styles.input, inputStyle]} value={newPass} onChangeText={setNewPass} secureTextEntry placeholderTextColor="#999"/>
             <View style={styles.modalButtons}>
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setPasswordModalVisible(false)}>
                 <Text style={styles.cancelText}>CANCEL</Text>
@@ -299,6 +243,58 @@ export default function SettingsScreen() {
                 <Text style={styles.confirmText}>UPDATE</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- MODAL: FEEDBACK INPUT --- */}
+      <Modal visible={feedbackModalVisible} transparent={true} animationType="fade" onRequestClose={() => setFeedbackModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, cardStyle]}>
+            <Text style={[styles.modalTitle, headerStyle]}>FEEDBACK</Text>
+            <Text style={[styles.modalMessage, textStyle]}>Let us know what you think!</Text>
+            
+            <TextInput 
+              style={[styles.input, styles.textArea, inputStyle]} 
+              value={feedbackText} 
+              onChangeText={setFeedbackText} 
+              placeholder="Type your message here..."
+              placeholderTextColor="#999"
+              multiline={true}
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setFeedbackModalVisible(false)}>
+                <Text style={styles.cancelText}>CLOSE</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.confirmBtn, { backgroundColor: theme.primary, borderBottomColor: theme.shadow }]} 
+                onPress={handleSendFeedback}
+              >
+                <Text style={styles.confirmText}>SEND</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- MODAL: FEEDBACK SUCCESS (NEW) --- */}
+      <Modal visible={feedbackSuccessModalVisible} transparent={true} animationType="fade" onRequestClose={() => setFeedbackSuccessModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, cardStyle]}>
+            <Text style={[styles.modalTitle, { color: theme.success || theme.primary }]}>RECEIVED!</Text>
+            <Text style={[styles.modalMessage, textStyle]}>
+              Thank you for your feedback. We read every message.
+            </Text>
+            
+            <TouchableOpacity 
+              style={[styles.logoutBtn, { backgroundColor: theme.success || theme.primary, borderColor: theme.success || theme.primary, marginBottom: 0 }]} 
+              onPress={() => setFeedbackSuccessModalVisible(false)}
+            >
+              <Text style={styles.confirmText}>CLOSE</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -313,11 +309,7 @@ export default function SettingsScreen() {
               <TouchableOpacity style={[styles.modalBtn, styles.cancelBtn]} onPress={() => setLogoutModalVisible(false)}>
                 <Text style={styles.cancelText}>STAY</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.logoutActionBtn, { backgroundColor: theme.danger, borderBottomColor: theme.dangerShadow }]} 
-                onPress={confirmLogout}
-              >
+              <TouchableOpacity style={[styles.modalBtn, styles.logoutActionBtn]} onPress={confirmLogout}>
                 <Text style={styles.confirmText}>LEAVE</Text>
               </TouchableOpacity>
             </View>
@@ -333,7 +325,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20 },
   
-  // Game Card
   gameCard: {
     marginBottom: 20,
     borderRadius: 20,
@@ -346,28 +337,6 @@ const styles = StyleSheet.create({
   cardHeader: { fontSize: 14, fontWeight: '900', letterSpacing: 1 },
   editLink: { fontWeight: 'bold', fontSize: 12 },
   
-  // Profile Image Display (Account Card)
-  profileHeader: { alignItems: 'center', marginBottom: 20 },
-  avatarContainer: { 
-    width: 80, height: 80, borderRadius: 40, 
-    borderWidth: 3, overflow: 'hidden', 
-    backgroundColor: '#ccc', 
-    justifyContent: 'center', alignItems: 'center' 
-  },
-  avatar: { width: '100%', height: '100%' },
-  avatarPlaceholder: { width: '100%', height: '100%', opacity: 0.5 },
-
-  // Modal Image Picker
-  imagePicker: { alignItems: 'center', marginBottom: 20 },
-  avatarEditContainer: { 
-    width: 100, height: 100, borderRadius: 50, 
-    borderWidth: 3, overflow: 'hidden', 
-    backgroundColor: '#eee', 
-    justifyContent: 'center', alignItems: 'center', 
-    marginBottom: 10 
-  },
-  changePhotoText: { fontSize: 12, fontWeight: 'bold' },
-
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
   label: { fontSize: 16, fontWeight: '700' },
   value: { fontSize: 16, fontWeight: '500' },
@@ -420,13 +389,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5
   },
+  textArea: {
+    minHeight: 100, 
+    textAlignVertical: 'top'
+  },
 
   modalButtons: { flexDirection: 'row', width: '100%', gap: 15, marginTop: 20 },
   modalBtn: { flex: 1, paddingVertical: 12, borderRadius: 15, alignItems: 'center', borderBottomWidth: 4 },
   
   cancelBtn: { backgroundColor: '#E0E0E0', borderBottomColor: '#999' },
-  confirmBtn: { }, // Color handled inline
-  logoutActionBtn: { }, // Color handled inline
+  confirmBtn: { /* Dynamic */ }, 
+  logoutActionBtn: { backgroundColor: '#FF4500', borderBottomColor: '#C03500' },
   
   cancelText: { color: '#333', fontWeight: '900' },
   confirmText: { color: 'white', fontWeight: '900' }

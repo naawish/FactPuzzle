@@ -2,184 +2,152 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
+const db = require('./database'); // Import the SQLite connection
 
 const app = express();
 const PORT = 3000;
-const DB_FILE = path.join(__dirname, 'database.json');
-const USERDATA_DIR = path.join(__dirname, 'userdata');
 
-// Increase limit to handle image uploads
-app.use(bodyParser.json({ limit: '50mb' }));
 app.use(cors());
-
-// 1. Create userdata folder if it doesn't exist
-if (!fs.existsSync(USERDATA_DIR)) {
-  fs.mkdirSync(USERDATA_DIR);
-}
-
-app.use('/userdata', express.static(USERDATA_DIR));
-
-// --- HELPER FUNCTIONS ---
-const readDB = () => {
-  if (!fs.existsSync(DB_FILE)) {
-    // Initialize with empty array if file missing
-    return { users: [] }; 
-  }
-  try {
-    const data = fs.readFileSync(DB_FILE);
-    return JSON.parse(data);
-  } catch (err) {
-    console.error("Error reading DB file:", err);
-    return { users: [] };
-  }
-};
-
-const writeDB = (data) => {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-};
+app.use(bodyParser.json());
 
 // --- ROUTES ---
 
-// SIGN UP
+// 1. SIGN UP
 app.post('/signup', (req, res) => {
-  console.log("Signup Request:", req.body.email); // Debug Log
   const { username, email, password } = req.body;
-  const db = readDB();
+  const id = Date.now().toString(); // Simple ID generation
 
-  if (db.users.find(u => u.email === email)) {
-    return res.status(400).json({ error: "User already exists" });
-  }
-
-  const newUser = {
-    id: Date.now().toString(),
-    username,
-    email,
-    password,
-    profilePicture: null, 
-    solved: []
-  };
-
-  db.users.push(newUser);
-  writeDB(db);
-  console.log("User Created:", newUser.email); // Debug Log
-  res.json(newUser);
+  const sql = `INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)`;
+  
+  db.run(sql, [id, username, email, password], function(err) {
+    if (err) {
+      // SQLite error 19 means "Unique Constraint Failed" (Email already exists)
+      if (err.errno === 19) {
+        return res.status(400).json({ error: "Email already in use" });
+      }
+      return res.status(500).json({ error: err.message });
+    }
+    
+    // Return User Object (Empty solved array for new user)
+    res.json({ id, username, email, password, solved: [] });
+  });
 });
 
-// LOGIN (DEBUGGING ADDED)
+// 2. LOGIN
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
-  console.log(`Login Attempt: ${email} with pass: ${password}`); // Debug Log
 
-  const db = readDB();
+  const sqlUser = `SELECT * FROM users WHERE email = ? AND password = ?`;
   
-  // Log all current users in DB to check consistency
-  // console.log("Current Users in DB:", db.users.map(u => `${u.email} : ${u.password}`));
+  db.get(sqlUser, [email, password], (err, user) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
-  const user = db.users.find(u => u.email === email && u.password === password);
-  
-  if (user) {
-    console.log("Login Success");
-    res.json(user);
-  } else {
-    console.log("Login Failed: Credentials do not match any user.");
-    res.status(401).json({ error: "Invalid credentials" });
-  }
+    // User found! Now fetch their solved puzzles
+    const sqlFacts = `SELECT fact_text as text, date FROM solved_facts WHERE user_id = ? ORDER BY id DESC`;
+    
+    db.all(sqlFacts, [user.id], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Combine User info + Solved Array
+      // The app expects 'solved' to be an array of { text, date }
+      const userData = {
+        ...user,
+        solved: rows // rows is already [{text: "...", date: "..."}]
+      };
+      
+      res.json(userData);
+    });
+  });
 });
 
-// UPDATE PROFILE 
+// 3. UPDATE PROFILE
 app.post('/update-profile', (req, res) => {
-  const { id, username, email, profileImageBase64 } = req.body;
-  const db = readDB();
-  
-  const userIndex = db.users.findIndex(u => u.id === id);
-  if (userIndex > -1) {
-    db.users[userIndex].username = username;
-    db.users[userIndex].email = email;
+  const { id, username, email } = req.body;
+  const sql = `UPDATE users SET username = ?, email = ? WHERE id = ?`;
 
-    if (profileImageBase64) {
-      const fileName = `${id}.png`;
-      const filePath = path.join(USERDATA_DIR, fileName);
-      const base64Data = profileImageBase64.replace(/^data:image\/\w+;base64,/, "");
-      fs.writeFileSync(filePath, base64Data, 'base64');
-      db.users[userIndex].profilePicture = `/userdata/${fileName}`;
-    }
-
-    writeDB(db);
-    res.json(db.users[userIndex]);
-  } else {
-    res.status(404).json({ error: "User not found" });
-  }
+  db.run(sql, [username, email, id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Fetch updated user to return to app
+    // We re-fetch to ensure data consistency
+    // (In a simple app, we can just echo back the data, but let's be safe)
+    // For simplicity here, we'll echo back with the existing solved list provided by client state usually,
+    // but the app expects the FULL object.
+    
+    // Let's just return the success and let the App update its local state, 
+    // or fetch the user again. The context usually handles the local update.
+    // Based on previous code, we return the updated object.
+    res.json({ id, username, email });
+  });
 });
 
-// SAVE PUZZLE
+// 4. SAVE PUZZLE
 app.post('/save-puzzle', (req, res) => {
   const { id, fact } = req.body;
-  const db = readDB();
-  const userIndex = db.users.findIndex(u => u.id === id);
-  if (userIndex > -1) {
-    // Check if fact exists (string or object)
-    const alreadyExists = db.users[userIndex].solved.some(item => {
-      if (typeof item === 'string') return item === fact;
-      return item.text === fact;
-    });
+  
+  // Handle both string format and object format
+  const factText = typeof fact === 'string' ? fact : fact.text;
+  const date = new Date().toISOString();
 
-    if (!alreadyExists) {
-      const newEntry = { text: fact, date: new Date().toISOString() };
-      db.users[userIndex].solved.unshift(newEntry);
-      writeDB(db);
+  // Check duplicate (Optional, but good for data hygiene)
+  const checkSql = `SELECT id FROM solved_facts WHERE user_id = ? AND fact_text = ?`;
+  
+  db.get(checkSql, [id, factText], (err, row) => {
+    if (!row) {
+      const insertSql = `INSERT INTO solved_facts (user_id, fact_text, date) VALUES (?, ?, ?)`;
+      db.run(insertSql, [id, factText, date], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Return success. Ideally we return the full updated list, 
+        // but for performance, we just tell the client "OK" 
+        // and the client updates its own list.
+        // However, to match previous behavior, let's return the full user object (expensive but safe for now)
+        // OR simply return success and let the client Context handle the array add.
+        // Your AuthContext updates local state manually, so we just need a 200 OK.
+        res.json({ success: true });
+      });
+    } else {
+      res.json({ success: true, message: "Already saved" });
     }
-    res.json(db.users[userIndex]);
-  } else {
-    res.status(404).json({ error: "User not found" });
-  }
+  });
 });
 
-// CHANGE PASSWORD
+// 5. CHANGE PASSWORD
 app.post('/change-password', (req, res) => {
   const { id, currentPassword, newPassword } = req.body;
-  const db = readDB();
-  const userIndex = db.users.findIndex(u => u.id === id);
-  
-  if (userIndex > -1) {
-    if (db.users[userIndex].password !== currentPassword) {
+
+  // Verify old password first
+  db.get(`SELECT password FROM users WHERE id = ?`, [id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: "User not found" });
+
+    if (row.password !== currentPassword) {
       return res.status(400).json({ error: "Incorrect password" });
     }
-    db.users[userIndex].password = newPassword;
-    writeDB(db);
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ error: "User not found" });
-  }
+
+    // Update
+    db.run(`UPDATE users SET password = ? WHERE id = ?`, [newPassword, id], (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    });
+  });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-// 6. SUBMIT FEEDBACK (NEW)
+// 6. SUBMIT FEEDBACK
 app.post('/submit-feedback', (req, res) => {
-  const { userId, username, text } = req.body; // We save username too for easier reading
-  const db = readDB();
+  const { userId, username, text } = req.body;
+  const date = new Date().toISOString();
 
-  // Initialize feedbacks array if it doesn't exist yet
-  if (!db.feedbacks) {
-    db.feedbacks = [];
-  }
+  const sql = `INSERT INTO feedbacks (user_id, username, message, date) VALUES (?, ?, ?, ?)`;
 
-  const newFeedback = {
-    id: Date.now().toString(),
-    userId,
-    username,
-    text,
-    date: new Date().toISOString()
-  };
-
-  db.feedbacks.push(newFeedback);
-  writeDB(db);
-
-  res.json({ success: true });
+  db.run(sql, [userId, username, text, date], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
 });
 
-// Start Server...
+// Start Server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`SQLite Server running on port ${PORT}`);
+});

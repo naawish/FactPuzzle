@@ -29,24 +29,12 @@ Open your terminal in the main project folder:
 
 code
 Bash
-
-download
-
-content_copy
-
-expand_less
 npm install
 Step 2: Setup the Backend
 Navigate to the server directory and install server dependencies:
 
 code
 Bash
-
-download
-
-content_copy
-
-expand_less
 cd fact-puzzle-server
 npm install
 Step 3: Run the Project
@@ -54,12 +42,6 @@ Return to the main project folder. I have configured a concurrent script to run 
 
 code
 Bash
-
-download
-
-content_copy
-
-expand_less
 npm run dev
 This command starts the Node.js/SQLite server on Port 3000 and the Expo Bundler.
 
@@ -84,11 +66,11 @@ Account Management: Edit username/email and change password securely.
 Feedback System: Users can submit feedback which is stored in the database.
 5. Screen Previews
 Login & Sign Up	Game Hub (Light & Dark)
-<img src="screenshots/login.jpg" width="200" /> <img src="screenshots/sign_up.jpg" width="200" />	<img src="screenshots/Homescreen.jpg" width="200" /> <img src="screenshots/Homescreen_darkmode.jpg" width="200" />
+<img src="assets/screenshots/login.jpg" width="200" /> <img src="assets/screenshots/sign_up.jpg" width="200" />	<img src="assets/screenshots/Homescreen.jpg" width="200" /> <img src="assets/screenshots/Homescreen_darkmode.jpg" width="200" />
 Profile & Sharing	Leaderboard & Settings
-<img src="screenshots/Profile_screen.jpg" width="200" /> <img src="screenshots/fact share.PNG" width="200" />	<img src="screenshots/Leaderboard.jpg" width="200" /> <img src="screenshots/settings.jpg" width="200" />
+<img src="assets/screenshots/Profile_screen.jpg" width="200" /> <img src="assets/screenshots/fact%20share.PNG" width="200" />	<img src="assets/screenshots/Leaderboard.jpg" width="200" /> <img src="assets/screenshots/settings.jpg" width="200" />
 Dark Mode Variations
-<img src="screenshots/Profile_darkmode.jpg" width="200" /> <img src="screenshots/Leaderboard_darkmode.jpg" width="200" />
+<img src="assets/screenshots/Profile_darkmode.jpg" width="200" /> <img src="assets/screenshots/Leaderboard_darkmode.jpg" width="200" />
 6. Known Issues & Future Improvements
 
 Known Issues
@@ -98,8 +80,6 @@ Future Improvements
 Cloud Migration: Move the SQLite database to a cloud provider (like Firebase Firestore or Supabase) to allow users to log in from any network (e.g., 4G/5G) without needing to be on the same Wi-Fi as the host computer.
 Push Notifications: Implement daily reminders to play a puzzle using Expo Notifications.
 Avatar Customization: Allow users to upload profile pictures or select avatars for the leaderboard.
-
-
 7. Submission Checklist
 
 Fully working app (Android/iOS/Web).

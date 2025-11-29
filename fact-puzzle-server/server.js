@@ -157,3 +157,29 @@ app.post('/change-password', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// 6. SUBMIT FEEDBACK (NEW)
+app.post('/submit-feedback', (req, res) => {
+  const { userId, username, text } = req.body; // We save username too for easier reading
+  const db = readDB();
+
+  // Initialize feedbacks array if it doesn't exist yet
+  if (!db.feedbacks) {
+    db.feedbacks = [];
+  }
+
+  const newFeedback = {
+    id: Date.now().toString(),
+    userId,
+    username,
+    text,
+    date: new Date().toISOString()
+  };
+
+  db.feedbacks.push(newFeedback);
+  writeDB(db);
+
+  res.json({ success: true });
+});
+
+// Start Server...

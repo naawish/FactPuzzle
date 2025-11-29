@@ -5,7 +5,8 @@ import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 export default function SettingsScreen() {
-  const { user, logout, updateProfile, changePassword } = useContext(AuthContext);
+  // 1. Get submitFeedback from Context
+  const { user, logout, updateProfile, changePassword, submitFeedback, isOffline } = useContext(AuthContext);
   
   const { 
     theme, 
@@ -15,19 +16,14 @@ export default function SettingsScreen() {
     toggleDarkMode 
   } = useContext(ThemeContext);
 
-  // --- States ---
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
-  
-  // Feedback States
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
-  const [feedbackSuccessModalVisible, setFeedbackSuccessModalVisible] = useState(false); // <--- NEW STATE
+  const [feedbackSuccessModalVisible, setFeedbackSuccessModalVisible] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
-
   const [notifications, setNotifications] = useState(true);
 
-  // Form States
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [currentPass, setCurrentPass] = useState('');
@@ -64,18 +60,28 @@ export default function SettingsScreen() {
     }
   };
 
-  // UPDATED: Send Feedback Handler
-  const handleSendFeedback = () => {
+  // --- UPDATED FEEDBACK LOGIC ---
+  const handleSendFeedback = async () => {
     if (!feedbackText.trim()) {
       Alert.alert("Empty", "Please write some feedback first!");
       return;
     }
-    // Simulate API call
-    console.log("Feedback sent:", feedbackText);
+
+    if (isOffline) {
+      Alert.alert("Offline", "Cannot send feedback while offline.");
+      return;
+    }
+
+    // Call API
+    const success = await submitFeedback(feedbackText);
     
-    setFeedbackModalVisible(false); // Close Input Modal
-    setFeedbackText('');
-    setFeedbackSuccessModalVisible(true); // Open 3D Success Modal
+    if (success) {
+      setFeedbackModalVisible(false);
+      setFeedbackText('');
+      setFeedbackSuccessModalVisible(true); // Show Success Modal
+    } else {
+      Alert.alert("Error", "Failed to send feedback. Try again later.");
+    }
   };
 
   const confirmLogout = () => {
@@ -84,26 +90,12 @@ export default function SettingsScreen() {
   };
 
   // --- DYNAMIC STYLES ---
-  const cardStyle = { 
-    backgroundColor: theme.card,
-    borderColor: theme.border,
-    borderBottomColor: theme.shadow
-  };
+  const cardStyle = { backgroundColor: theme.card, borderColor: theme.border, borderBottomColor: theme.shadow };
   const textStyle = { color: theme.text };
   const subTextStyle = { color: theme.subText };
   const headerStyle = { color: theme.primary };
-  
-  const inputStyle = { 
-    backgroundColor: theme.background === '#0F172A' ? '#334155' : '#F5F5F5', 
-    color: theme.text,
-    borderColor: theme.border
-  };
-
-  const logoutBtnStyle = { 
-    backgroundColor: theme.danger, 
-    borderColor: theme.danger,
-    borderBottomColor: theme.dangerShadow 
-  };
+  const inputStyle = { backgroundColor: theme.background === '#0F172A' ? '#334155' : '#F5F5F5', color: theme.text, borderColor: theme.border };
+  const logoutBtnStyle = { backgroundColor: theme.danger, borderColor: theme.danger, borderBottomColor: theme.dangerShadow };
 
   return (
     <ImageBackground 
@@ -115,7 +107,6 @@ export default function SettingsScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           
-          {/* --- ACCOUNT CARD --- */}
           <View style={[styles.gameCard, cardStyle]}>
             <View style={styles.cardHeaderRow}>
               <Text style={[styles.cardHeader, headerStyle]}>PLAYER ACCOUNT</Text>
@@ -123,7 +114,6 @@ export default function SettingsScreen() {
                 <Text style={[styles.editLink, { color: theme.primary }]}>EDIT</Text>
               </TouchableOpacity>
             </View>
-            
             <View style={styles.row}>
               <Text style={[styles.label, textStyle]}>USERNAME</Text>
               <Text style={[styles.value, subTextStyle]}>{user?.username}</Text>
@@ -135,7 +125,6 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          {/* --- SECURITY CARD --- */}
           <View style={[styles.gameCard, cardStyle]}>
             <Text style={[styles.cardHeader, headerStyle]}>SECURITY</Text>
             <View style={styles.row}>
@@ -147,7 +136,6 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* --- APPEARANCE CARD --- */}
           <View style={[styles.gameCard, cardStyle]}>
             <Text style={[styles.cardHeader, headerStyle]}>VISUALS</Text>
             <View style={styles.row}>
@@ -155,38 +143,23 @@ export default function SettingsScreen() {
                 <Text style={[styles.label, textStyle]}>AUTO THEME</Text>
                 <Text style={styles.hint}>Match device settings</Text>
               </View>
-              <Switch 
-                value={useSystemTheme} 
-                onValueChange={toggleSystemTheme} 
-                trackColor={{ false: "#767577", true: theme.primary }}
-              />
+              <Switch value={useSystemTheme} onValueChange={toggleSystemTheme} trackColor={{ false: "#767577", true: theme.primary }} />
             </View>
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
             <View style={[styles.row, useSystemTheme && styles.disabledRow]}>
               <Text style={[styles.label, textStyle]}>DARK MODE</Text>
-              <Switch 
-                disabled={useSystemTheme}
-                value={isDarkMode} 
-                onValueChange={toggleDarkMode}
-                trackColor={{ false: "#767577", true: theme.primary }}
-              />
+              <Switch disabled={useSystemTheme} value={isDarkMode} onValueChange={toggleDarkMode} trackColor={{ false: "#767577", true: theme.primary }} />
             </View>
           </View>
 
-          {/* --- ALERTS CARD --- */}
           <View style={[styles.gameCard, cardStyle]}>
             <Text style={[styles.cardHeader, headerStyle]}>ALERTS</Text>
             <View style={styles.row}>
               <Text style={[styles.label, textStyle]}>PUSH NOTIFICATIONS</Text>
-              <Switch 
-                value={notifications} 
-                onValueChange={setNotifications}
-                trackColor={{ false: "#767577", true: theme.primary }}
-              />
+              <Switch value={notifications} onValueChange={setNotifications} trackColor={{ false: "#767577", true: theme.primary }} />
             </View>
           </View>
 
-          {/* --- SUPPORT CARD --- */}
           <View style={[styles.gameCard, cardStyle]}>
             <Text style={[styles.cardHeader, headerStyle]}>SUPPORT</Text>
             <View style={styles.row}>
@@ -197,7 +170,6 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* --- LOGOUT BUTTON --- */}
           <TouchableOpacity style={[styles.logoutBtn, logoutBtnStyle]} onPress={() => setLogoutModalVisible(true)}>
             <Text style={styles.logoutText}>LOG OUT</Text>
           </TouchableOpacity>
@@ -280,7 +252,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* --- MODAL: FEEDBACK SUCCESS (NEW) --- */}
+      {/* --- MODAL: FEEDBACK SUCCESS --- */}
       <Modal visible={feedbackSuccessModalVisible} transparent={true} animationType="fade" onRequestClose={() => setFeedbackSuccessModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, cardStyle]}>
@@ -324,83 +296,32 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20 },
-  
-  gameCard: {
-    marginBottom: 20,
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 3,
-    borderBottomWidth: 6, 
-    elevation: 5
-  },
+  gameCard: { marginBottom: 20, borderRadius: 20, padding: 20, borderWidth: 3, borderBottomWidth: 6, elevation: 5 },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   cardHeader: { fontSize: 14, fontWeight: '900', letterSpacing: 1 },
   editLink: { fontWeight: 'bold', fontSize: 12 },
-  
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
   label: { fontSize: 16, fontWeight: '700' },
   value: { fontSize: 16, fontWeight: '500' },
   hint: { fontSize: 12, color: '#999', marginTop: 2, fontStyle: 'italic' },
   divider: { height: 2, marginVertical: 10, opacity: 0.5 },
   disabledRow: { opacity: 0.4 },
-
-  actionBtn: {
-    marginTop: 15,
-    backgroundColor: '#E0E0E0',
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#999',
-    borderBottomWidth: 3,
-    borderBottomColor: '#777'
-  },
+  actionBtn: { marginTop: 15, backgroundColor: '#E0E0E0', paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#999', borderBottomWidth: 3, borderBottomColor: '#777' },
   actionBtnText: { fontWeight: 'bold', color: '#555', fontSize: 12 },
-
-  logoutBtn: { 
-    paddingVertical: 15, 
-    borderRadius: 50, 
-    alignItems: 'center',
-    marginBottom: 30, 
-    marginTop: 10,
-    borderWidth: 2,
-    borderBottomWidth: 6,
-  },
+  logoutBtn: { paddingVertical: 15, borderRadius: 50, alignItems: 'center', marginBottom: 30, marginTop: 10, borderWidth: 2, borderBottomWidth: 6 },
   logoutText: { color: 'white', fontWeight: '900', fontSize: 18, letterSpacing: 1 },
-
-  // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  modalCard: { 
-    width: '85%', 
-    borderRadius: 25, 
-    padding: 25, 
-    borderWidth: 3,
-    borderBottomWidth: 6,
-    elevation: 10
-  },
+  modalCard: { width: '85%', borderRadius: 25, padding: 25, borderWidth: 3, borderBottomWidth: 6, elevation: 10 },
   modalTitle: { fontSize: 20, fontWeight: '900', marginBottom: 20, textAlign: 'center' },
   modalMessage: { fontSize: 16, textAlign: 'center', marginBottom: 25, fontWeight: '500' },
-  
   inputLabel: { fontSize: 12, fontWeight: 'bold', marginBottom: 5, marginTop: 10 },
-  input: { 
-    borderWidth: 2, 
-    borderRadius: 10, 
-    padding: 12, 
-    fontSize: 16,
-    marginBottom: 5
-  },
-  textArea: {
-    minHeight: 100, 
-    textAlignVertical: 'top'
-  },
-
+  input: { borderWidth: 2, borderRadius: 10, padding: 12, fontSize: 16, marginBottom: 5 },
+  textArea: { minHeight: 100, textAlignVertical: 'top' },
   modalButtons: { flexDirection: 'row', width: '100%', gap: 15, marginTop: 20 },
   modalBtn: { flex: 1, paddingVertical: 12, borderRadius: 15, alignItems: 'center', borderBottomWidth: 4 },
-  
   cancelBtn: { backgroundColor: '#E0E0E0', borderBottomColor: '#999' },
   confirmBtn: { /* Dynamic */ }, 
   logoutActionBtn: { backgroundColor: '#FF4500', borderBottomColor: '#C03500' },
-  
   cancelText: { color: '#333', fontWeight: '900' },
   confirmText: { color: 'white', fontWeight: '900' }
 });

@@ -150,6 +150,7 @@ Terminal 1 (Backend Server):
 You should see: "SQLite Server running on port 3000"
 
 Terminal 2 (Mobile App):
+
     ```bash
        cd FactPuzzle
        npx expo start -c

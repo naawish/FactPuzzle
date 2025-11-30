@@ -106,11 +106,31 @@ Game Logic -> AuthContext (saveSolvedPuzzle) -> Axios POST -> Node.js Server -> 
 - **Expo Go** app installed on your mobile device.
 - Your computer and phone must be on the **same Wi-Fi network**.
 
+
+
 ### Installation
 1.  **Install App Dependencies:**
+Open your terminal/command prompt:
+git clone https://github.com/naawish/FactPuzzle.git
+cd FactPuzzle
+
     ```bash
     npm install
     ```
+
+# Core, Navigation, and Utilities
+npx expo install react react-dom react-native react-native-web @expo/metro-runtime @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs react-native-screens react-native-safe-area-context
+
+# Data & Networking
+npx expo install @react-native-async-storage/async-storage axios expo-constants
+
+# UI & Media
+npx expo install react-native-svg @expo/vector-icons expo-sharing react-native-view-shot
+
+# Dev Tools (for running server and app together)
+npm install concurrently --save-dev
+
+
 2.  **Install Server Dependencies:**
     ```bash
     cd fact-puzzle-server
@@ -120,8 +140,10 @@ Game Logic -> AuthContext (saveSolvedPuzzle) -> Axios POST -> Node.js Server -> 
 ### Run in Development
 This project requires the backend server to be running. A concurrent script has been set up to launch both the App and the Server with one command:
     ```bash
+    npm install express cors body-parser sqlite3
     npm run dev
     ```
+
 his command starts the Node.js server on Port 3000 and the Expo Bundler.
 
 ### Quality Gates

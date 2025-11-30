@@ -137,6 +137,24 @@ This project requires the backend server to be running. A concurrent script has 
 
 This command starts the Node.js server on Port 3000 and the Expo Bundler.
 
+### Alternative Development
+The Manual Method (Recommended for QR Code visibility)
+If the QR code isn't showing up, open two separate terminal windows:
+
+Terminal 1 (Backend Server):
+
+    ```bash
+        cd FactPuzzle/fact-puzzle-server
+        node server.js
+    ```
+You should see: "SQLite Server running on port 3000"
+
+Terminal 2 (Mobile App):
+    ```bash
+       cd FactPuzzle
+       npx expo start -c
+    ```
+
 ### Quality Gates
 - Offline Detection: The app includes an Axios interceptor that detects network failures and displays an "Offline Mode" badge if the server cannot be reached.
 - IP Configuration: The app uses expo-constants to automatically detect your computer's IP address, removing the need for manual configuration in most network environments.

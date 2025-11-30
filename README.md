@@ -119,21 +119,21 @@ Game Logic -> AuthContext (saveSolvedPuzzle) -> Axios POST -> Node.js Server -> 
 
 ### Run in Development
 This project requires the backend server to be running. A concurrent script has been set up to launch both the App and the Server with one command:
-
-```bash
-npm run dev
-
+    ```bash
+    npm run dev
+    ```
 his command starts the Node.js server on Port 3000 and the Expo Bundler.
 
-Quality Gates
-Offline Detection: The app includes an Axios interceptor that detects network failures and displays an "Offline Mode" badge if the server cannot be reached.
-IP Configuration: The app uses expo-constants to automatically detect your computer's IP address, removing the need for manual configuration in most network environments.
-Troubleshooting
-Network Error / Login Failed: Ensure your firewall allows connections on Port 3000. Ensure both devices are on the same Wi-Fi.
-Database Missing: If the server crashes, ensure you ran npm install inside the fact-puzzle-server folder specifically.
+### Quality Gates
+- Offline Detection: The app includes an Axios interceptor that detects network failures and displays an "Offline Mode" badge if the server cannot be reached.
+- IP Configuration: The app uses expo-constants to automatically detect your computer's IP address, removing the need for manual configuration in most network environments.
+
+### Troubleshooting
+- Network Error / Login Failed: Ensure your firewall allows connections on Port 3000. Ensure both devices are on the same Wi-Fi.
+- Database Missing: If the server crashes, ensure you ran npm install inside the fact-puzzle-server folder specifically.
 Screenshots
 
-Login & Onboarding
+### Login & Onboarding
 User-friendly forms with custom 3D styling and theme support.
 
 Login Screen	Sign Up Screen
@@ -149,27 +149,31 @@ A visual timeline of unlocked knowledge, grouped by date.
 Profile Light	Profile Dark
 <img src="screenshots/Profile_screen.jpg" width="300" alt="Profile" />	<img src="screenshots/Profile_darkmode.jpg" width="300" alt="Profile Dark" />
 Leaderboard & Stats
-Tracks individual game wins and global user rankings.
 
+Tracks individual game wins and global user rankings.
 Leaderboard Light	Leaderboard Dark
 <img src="screenshots/Leaderboard.jpg" width="300" alt="Leaderboard" />	<img src="screenshots/Leaderboard_darkmode.jpg" width="300" alt="Leaderboard Dark" />
+
 Settings & Sharing
 Manage account details and share achievements.
-
 Settings Menu	Social Share Card
 <img src="screenshots/settings.jpg" width="300" alt="Settings" />	<img src="screenshots/fact%20share.PNG" width="300" alt="Fact Share" />
-Testing & Debugging
-Manual Testing: Each game has been tested for win/loss conditions, difficulty adjustments, and API failure fallbacks (e.g., Hangman uses a local word list if the API fails).
-Backend Testing: API endpoints (/login, /save-puzzle) were verified using Postman and console logging within the custom server.js middleware.
-Web Compatibility: Layouts utilize maxWidth constraints and platform-specific files (.web.js) to ensure the UI does not stretch on desktop browsers.
-Known Issues & Future Improvements
-Web View Limitations – The "Share Image" feature is disabled on the Web version due to browser security limitations regarding react-native-view-shot.
-Keyboard Handling – On smaller devices, the keyboard may occasionally cover input fields in the Trivia game, though KeyboardAvoidingView is implemented to minimize this.
-Cloud Migration – Moving from SQLite to Firebase Firestore would allow users to log in from any network (e.g., 4G/5G) without needing to be on the same local Wi-Fi.
-Academic Project
-This is an educational project developed as part of:
 
+
+### Testing & Debugging
+- DManual Testing: Each game has been tested for win/loss conditions, difficulty adjustments, and API failure fallbacks (e.g., Hangman uses a local word list if the API fails).
+- DBackend Testing: API endpoints (/login, /save-puzzle) were verified using Postman and console logging within the custom server.js middleware.
+Web Compatibility: Layouts utilize maxWidth constraints and platform-specific files (.web.js) to ensure the UI does not stretch on desktop browsers.
+
+### Known Issues & Future Improvements
+- Web View Limitations – The "Share Image" feature is disabled on the Web version due to browser security limitations regarding react-native-view-shot.
+- Keyboard Handling – On smaller devices, the keyboard may occasionally cover input fields in the Trivia game, though KeyboardAvoidingView is implemented to minimize this.
+- Cloud Migration – Moving from SQLite to Firebase Firestore would allow users to log in from any network (e.g., 4G/5G) without needing to be on the same local Wi-Fi.
+Academic Project
+
+This is an educational project developed as part of:
 Module: UFCF7H-15-3 Mobile Applications
-Student: Mohamed Nawish Abdul Malik
+
+Institution: University of West of England in association with Villa College
 License
 MIT License

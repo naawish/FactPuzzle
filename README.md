@@ -169,11 +169,11 @@ Web Compatibility: Layouts utilize maxWidth constraints and platform-specific fi
 - Web View Limitations – The "Share Image" feature is disabled on the Web version due to browser security limitations regarding react-native-view-shot.
 - Keyboard Handling – On smaller devices, the keyboard may occasionally cover input fields in the Trivia game, though KeyboardAvoidingView is implemented to minimize this.
 - Cloud Migration – Moving from SQLite to Firebase Firestore would allow users to log in from any network (e.g., 4G/5G) without needing to be on the same local Wi-Fi.
-Academic Project
 
+### Academic Project
 This is an educational project developed as part of:
 Module: UFCF7H-15-3 Mobile Applications
-
 Institution: University of West of England in association with Villa College
-License
+
+### License
 MIT License

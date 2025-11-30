@@ -111,25 +111,29 @@ Game Logic -> AuthContext (saveSolvedPuzzle) -> Axios POST -> Node.js Server -> 
 ### Installation
 1.  **Install App Dependencies:**
 Open your terminal/command prompt:
-git clone https://github.com/naawish/FactPuzzle.git
-cd FactPuzzle
+- git clone https://github.com/naawish/FactPuzzle.git
+- cd FactPuzzle
 
     ```bash
     npm install
     ```
 
 # Core, Navigation, and Utilities
-npx expo install react react-dom react-native react-native-web @expo/metro-runtime @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs react-native-screens react-native-safe-area-context
 
+    ```bash
+    npx expo install react react-dom react-native react-native-web @expo/metro-runtime @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs react-native-screens react-native-safe-area-context
+    ```
 # Data & Networking
-npx expo install @react-native-async-storage/async-storage axios expo-constants
-
+    ```bash
+    npx expo install @react-native-async-storage/async-storage axios expo-constants
+    ```
 # UI & Media
-npx expo install react-native-svg @expo/vector-icons expo-sharing react-native-view-shot
-
+    ```bash
+    npx expo install react-native-svg @expo/vector-icons expo-sharing react-native-view-shot
+    ```
 # Dev Tools (for running server and app together)
-npm install concurrently --save-dev
-
+    npm install concurrently --save-dev
+    ```
 
 2.  **Install Server Dependencies:**
     ```bash

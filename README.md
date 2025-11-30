@@ -119,23 +119,23 @@ Open your terminal/command prompt:
     npx expo install react react-dom react-native react-native-web @expo/metro-runtime @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs react-native-screens react-native-safe-area-context
     npx expo install @react-native-async-storage/async-storage axios expo-constants
     npx expo install react-native-svg @expo/vector-icons expo-sharing react-native-view-shot
-    npm install concurrently --save-dev
+    npm install concurrently
     ```
 
 2.  **Install Server Dependencies:**
     ```bash
     cd fact-puzzle-server
+    npm install express cors body-parser sqlite3
     npm install
     ```
 
 ### Run in Development
 This project requires the backend server to be running. A concurrent script has been set up to launch both the App and the Server with one command:
     ```bash
-    npm install express cors body-parser sqlite3
     npm run dev
     ```
 
-his command starts the Node.js server on Port 3000 and the Expo Bundler.
+This command starts the Node.js server on Port 3000 and the Expo Bundler.
 
 ### Quality Gates
 - Offline Detection: The app includes an Axios interceptor that detects network failures and displays an "Offline Mode" badge if the server cannot be reached.

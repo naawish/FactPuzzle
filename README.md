@@ -135,26 +135,25 @@ Screenshots
 
 ### Login & Onboarding
 User-friendly forms with custom 3D styling and theme support.
-
 Login Screen	Sign Up Screen
 <img src="screenshots/login.jpg" width="300" alt="Login" />	<img src="screenshots/sign_up.jpg" width="300" alt="Sign Up" />
-Game Hub (Light & Dark)
-The central hub for accessing games, showcasing the dynamic theming engine.
 
+## Game Hub (Light & Dark)
+The central hub for accessing games, showcasing the dynamic theming engine.
 Light Mode	Dark Mode
 <img src="screenshots/Homescreen.jpg" width="300" alt="Home Light" />	<img src="screenshots/Homescreen_darkmode.jpg" width="300" alt="Home Dark" />
-Profile & Timeline
-A visual timeline of unlocked knowledge, grouped by date.
 
+## Profile & Timeline
+A visual timeline of unlocked knowledge, grouped by date.
 Profile Light	Profile Dark
 <img src="screenshots/Profile_screen.jpg" width="300" alt="Profile" />	<img src="screenshots/Profile_darkmode.jpg" width="300" alt="Profile Dark" />
-Leaderboard & Stats
 
+## Leaderboard & Stats
 Tracks individual game wins and global user rankings.
 Leaderboard Light	Leaderboard Dark
 <img src="screenshots/Leaderboard.jpg" width="300" alt="Leaderboard" />	<img src="screenshots/Leaderboard_darkmode.jpg" width="300" alt="Leaderboard Dark" />
 
-Settings & Sharing
+## Settings & Sharing
 Manage account details and share achievements.
 Settings Menu	Social Share Card
 <img src="screenshots/settings.jpg" width="300" alt="Settings" />	<img src="screenshots/fact%20share.PNG" width="300" alt="Fact Share" />

@@ -116,22 +116,9 @@ Open your terminal/command prompt:
 
     ```bash
     npm install
-    ```
-
-# Core, Navigation, and Utilities
-
-    ```bash
     npx expo install react react-dom react-native react-native-web @expo/metro-runtime @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs react-native-screens react-native-safe-area-context
-    ```
-# Data & Networking
-    ```bash
     npx expo install @react-native-async-storage/async-storage axios expo-constants
-    ```
-# UI & Media
-    ```bash
     npx expo install react-native-svg @expo/vector-icons expo-sharing react-native-view-shot
-    ```
-# Dev Tools (for running server and app together)
     npm install concurrently --save-dev
     ```
 

@@ -2,6 +2,7 @@
   "expo": {
     "name": "FactPuzzle",
     "slug": "FactPuzzle",
+    "scheme": "factpuzzle", 
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/app-icon.png",
@@ -17,7 +18,6 @@
       "bundleIdentifier": "com.yourname.factpuzzle",
       "icon": "./assets/app-icon.png"
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/app-icon.png",
@@ -27,6 +27,9 @@
     },
     "web": {
       "favicon": "./assets/app-icon.png"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

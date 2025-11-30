@@ -1,19 +1,20 @@
-// src/games/HangmanGame.js
+// src/games/HangmanGame.tsx
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, ImageBackground, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, ImageBackground, ScrollView } from 'react-native';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
 
 // API CONFIG
 const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR'; 
+const API_URL = 'https://api.api-ninjas.com/v1/randomword';
 
-// --- OFFLINE BACKUP LIST ---
-// If the API fails (no internet/CORS), we use these words.
+// FALLBACK WORDS (Used if API fails or no internet)
 const FALLBACK_WORDS = [
   "PUZZLE", "REACT", "NATIVE", "CODING", "JAVASCRIPT", "PYTHON", "DATABASE",
   "SERVER", "MOBILE", "DESIGN", "PIXEL", "VECTOR", "SYNTAX", "DEBUG", "DEPLOY",
-  "WIDGET", "SCREEN", "BUTTON", "INPUT", "STYLE", "LAYOUT", "LOGIC", "ASYNC"
+  "WIDGET", "SCREEN", "BUTTON", "INPUT", "STYLE", "LAYOUT", "LOGIC", "ASYNC",
+  "ORANGE", "PURPLE", "ROBOT", "SYSTEM", "MEMORY", "STORAGE", "NETWORK"
 ];
 
 export default function HangmanGame() {
@@ -22,9 +23,9 @@ export default function HangmanGame() {
 
   const [word, setWord] = useState('');
   const [loading, setLoading] = useState(true);
-  const [guessedLetters, setGuessedLetters] = useState(new Set());
+  const [guessedLetters, setGuessedLetters] = useState(new Set<string>());
   const [lives, setLives] = useState(6);
-  const [gameStatus, setGameStatus] = useState('playing'); 
+  const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing'); 
   const [errorVisible, setErrorVisible] = useState(false);
 
   useEffect(() => {
@@ -39,42 +40,70 @@ export default function HangmanGame() {
     setLives(6);
     
     try {
-      const response = await axios.get('https://api.api-ninjas.com/v1/randomword', {
+      console.log("Fetching word...");
+      
+      // 1. Attempt API Fetch
+      const response = await axios.get(API_URL, {
         headers: { 'X-Api-Key': API_KEY },
-        timeout: 5000 // Stop waiting after 5 seconds
+        params: { type: 'noun' }, // Prefer nouns
+        timeout: 4000 // Short timeout to fallback quickly
       });
       
-      let rawWord = '';
-      if (response.data.word) {
-        rawWord = response.data.word;
-      } else if (Array.isArray(response.data) && response.data.length > 0) {
-        rawWord = response.data[0];
+      // 2. Aggressive Parsing Logic
+      // API Ninjas can return: ["word"], {word: "word"}, or just "word"
+      let candidateWord = '';
+      const data = response.data;
+
+      if (Array.isArray(data) && data.length > 0) {
+        // Handle ["word"] or [{word: "word"}]
+        const firstItem = data[0];
+        if (typeof firstItem === 'string') {
+          candidateWord = firstItem;
+        } else if (typeof firstItem === 'object' && firstItem?.word) {
+          candidateWord = firstItem.word;
+        }
+      } else if (typeof data === 'object' && data?.word) {
+        // Handle {word: "word"}
+        candidateWord = data.word;
+      } else if (typeof data === 'string') {
+        // Handle "word"
+        candidateWord = data;
       }
 
-      if (!rawWord) throw new Error("No word returned");
+      // 3. Validation
+      if (!candidateWord || typeof candidateWord !== 'string') {
+        console.warn("API returned unexpected format:", JSON.stringify(data));
+        // Don't throw error, just trigger fallback
+        useFallbackWord();
+        return;
+      }
 
-      const cleanWord = rawWord.replace(/[^a-zA-Z]/g, '').toUpperCase();
+      // 4. Clean and Set
+      const cleanWord = candidateWord.replace(/[^a-zA-Z]/g, '').toUpperCase();
 
       if (cleanWord.length < 3) {
-        // Retry logic logic here if needed, or fallback
-        throw new Error("Word too short");
+        console.warn("Word too short, using fallback.");
+        useFallbackWord();
+        return;
       }
 
       setWord(cleanWord);
       setLoading(false);
 
-    } catch (error) {
-      console.log("API Error (Switching to Offline Mode):", error.message);
-      
-      // --- FALLBACK LOGIC ---
-      // Instead of showing error, pick a random local word
-      const randomFallback = FALLBACK_WORDS[Math.floor(Math.random() * FALLBACK_WORDS.length)];
-      setWord(randomFallback);
-      setLoading(false);
+    } catch (error: any) {
+      console.log("API Request Failed, switching to Offline Mode.");
+      useFallbackWord();
     }
   };
 
-  const handleGuess = (letter) => {
+  // Helper to load local word
+  const useFallbackWord = () => {
+    const randomFallback = FALLBACK_WORDS[Math.floor(Math.random() * FALLBACK_WORDS.length)];
+    setWord(randomFallback);
+    setLoading(false);
+  };
+
+  const handleGuess = (letter: string) => {
     if (gameStatus !== 'playing' || guessedLetters.has(letter)) return;
 
     const newGuessed = new Set(guessedLetters);
@@ -200,18 +229,18 @@ export default function HangmanGame() {
         </View>
       </ScrollView>
 
-      {/* --- ERROR MODAL (Only shows if something goes catastrophically wrong with fallback) --- */}
+      {/* --- ERROR MODAL --- */}
       <Modal visible={errorVisible} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, modalStyle]}>
             <Text style={[styles.modalTitle, { color: theme.danger }]}>ERROR</Text>
             <View style={styles.modalContent}>
               <Text style={[styles.label, { color: theme.text, textAlign: 'center' }]}>
-                Something went wrong.
+                Connection failed. Using offline mode.
               </Text>
             </View>
-            <TouchableOpacity style={[styles.nextBtn, btnStyle]} onPress={fetchWord}>
-              <Text style={styles.btnText}>RETRY</Text>
+            <TouchableOpacity style={[styles.nextBtn, btnStyle]} onPress={() => setErrorVisible(false)}>
+              <Text style={styles.btnText}>OK</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -254,7 +283,6 @@ const styles = StyleSheet.create({
   
   gameWrapper: { width: '100%', maxWidth: 500, alignSelf: 'center', alignItems: 'center' },
 
-  // Drawing
   drawCard: {
     width: '100%', height: 220, borderRadius: 20, borderWidth: 3, borderBottomWidth: 6,
     marginBottom: 30, justifyContent: 'center', alignItems: 'center', elevation: 5
@@ -272,19 +300,16 @@ const styles = StyleSheet.create({
   legL: { position: 'absolute', top: 105, right: 22, width: 25, height: 3, transform: [{ rotate: '-45deg' }] },
   legR: { position: 'absolute', top: 105, right: -2, width: 25, height: 3, transform: [{ rotate: '45deg' }] },
 
-  // Word
   wordRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 20 },
   charSlot: { minWidth: 25, borderBottomWidth: 3, alignItems: 'center', paddingBottom: 2 },
   charText: { fontSize: 24, fontWeight: '900', letterSpacing: 2 },
 
   status: { fontSize: 14, fontWeight: '900', letterSpacing: 1, marginBottom: 20 },
 
-  // Keyboard
   keyboard: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
   key: { width: 34, height: 42, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderBottomWidth: 3 },
   keyText: { fontSize: 16, fontWeight: 'bold' },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
   modalCard: { width: '85%', maxWidth: 400, borderRadius: 30, padding: 30, alignItems: 'center', borderWidth: 4, borderBottomWidth: 8, elevation: 20 },
   modalTitle: { fontSize: 28, fontWeight: '900', marginBottom: 20, letterSpacing: 1, textAlign: 'center' },

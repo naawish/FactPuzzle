@@ -1,17 +1,37 @@
-// src/games/WordFinderGame.js
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, ImageBackground, Alert, PanResponder } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ActivityIndicator, 
+  Modal, 
+  ImageBackground, 
+  Alert, 
+  PanResponder, 
+  Dimensions
+} from 'react-native';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
 import { Ionicons } from '@expo/vector-icons';
 
 // API & CONFIG
-const FACTS_API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR'; 
+const API_KEY = process.env.EXPO_PUBLIC_API_NINJAS_KEY || ''; 
 const GRID_SIZE = 8; 
 
+// TYPES
+type Direction = [number, number];
+interface Difficulty {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  minLen: number;
+  maxLen: number;
+  directions: Direction[];
+}
+
 // DIFFICULTY SETTINGS
-const DIFFICULTIES = {
+const DIFFICULTIES: Record<string, Difficulty> = {
   EASY: { 
     label: 'EASY', 
     icon: 'star', 
@@ -43,29 +63,36 @@ export default function WordFinderGame() {
   const [fact, setFact] = useState('');
   const [targetWord, setTargetWord] = useState('');
   const [hint, setHint] = useState('');
-  const [grid, setGrid] = useState([]);
-  const [selectedLetters, setSelectedLetters] = useState([]);
+  const [grid, setGrid] = useState<string[]>([]);
+  const [selectedLetters, setSelectedLetters] = useState<{index: number, letter: string}[]>([]);
   
+  // Solution Tracking
+  const [solutionIndices, setSolutionIndices] = useState<number[]>([]);
+  const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing');
+
   // UI States
   const [loading, setLoading] = useState(false);
   const [difficultyModalVisible, setDifficultyModalVisible] = useState(true); 
-  const [selectedDifficulty, setSelectedDifficulty] = useState(null); 
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null); 
   const [successModalVisible, setSuccessModalVisible] = useState(false);
-
+  
   // Hints
   const [hintLevel, setHintLevel] = useState(0);
   const [definition, setDefinition] = useState('');
   const [defLoading, setDefLoading] = useState(false);
 
   // Refs
-  const gridRef = useRef([]); 
+  const gridRef = useRef<string[]>([]); 
   const targetWordRef = useRef(''); 
   const factRef = useRef('');
-  const selectionRef = useRef([]);  
-  const selectionOriginRef = useRef(null); 
-  const gridViewRef = useRef(null);
-  const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0, pageX: 0, pageY: 0 });
-  const clearTimerRef = useRef(null);
+  const selectionRef = useRef<{index: number, letter: string}[]>([]);  
+  const selectionOriginRef = useRef<number | null>(null); 
+  
+  // Layout Refs for coordinate calculation
+  const containerRef = useRef<View>(null);
+  const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+
+  const clearTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync Refs
   useEffect(() => { targetWordRef.current = targetWord; }, [targetWord]);
@@ -73,7 +100,7 @@ export default function WordFinderGame() {
   useEffect(() => { factRef.current = fact; }, [fact]); 
 
   // --- 1. START GAME ---
-  const startGame = (diffKey) => {
+  const startGame = (diffKey: string) => {
     const settings = DIFFICULTIES[diffKey];
     setSelectedDifficulty(settings); 
     setDifficultyModalVisible(false);
@@ -81,7 +108,7 @@ export default function WordFinderGame() {
   };
 
   // --- 2. FETCH LOGIC ---
-  const fetchFact = async (difficultySettings) => {
+  const fetchFact = async (difficultySettings?: Difficulty) => {
     const activeDifficulty = (difficultySettings && difficultySettings.minLen) 
       ? difficultySettings 
       : selectedDifficulty;
@@ -97,37 +124,23 @@ export default function WordFinderGame() {
     selectionRef.current = []; 
     setHintLevel(0);
     setDefinition('');
+    setGameStatus('playing'); 
     
     try {
       const response = await axios.get('https://api.api-ninjas.com/v1/facts', {
-        headers: { 'X-Api-Key': FACTS_API_KEY }
+        headers: { 'X-Api-Key': API_KEY }
       });
       const factText = response.data[0].fact;
       setFact(factText);
       generatePuzzle(factText, activeDifficulty);
     } catch (error) {
       setLoading(false);
-      Alert.alert("Error", "Could not load puzzle.");
+      Alert.alert("Error", "Could not load puzzle. Check internet connection.");
     }
   };
 
-  // --- 3. NAVIGATION HANDLERS ---
-  const handleNextPuzzle = () => {
-    setSuccessModalVisible(false);
-    fetchFact();
-  };
-
-  const handleBackToMenu = () => {
-    setSuccessModalVisible(false);
-    setDifficultyModalVisible(true);
-  };
-
-  const handleSkip = () => {
-    fetchFact(selectedDifficulty);
-  };
-
-  // --- 4. PUZZLE GENERATION ---
-  const generatePuzzle = (factText, difficulty) => {
+  // --- 3. PUZZLE GENERATION ---
+  const generatePuzzle = (factText: string, difficulty: Difficulty) => {
     const cleanText = factText.replace(/[^a-zA-Z ]/g, "");
     const words = cleanText.split(" ").filter(w => w.length >= difficulty.minLen && w.length <= difficulty.maxLen);
     
@@ -144,6 +157,7 @@ export default function WordFinderGame() {
 
     let placed = false;
     let attempts = 0;
+    let solution: number[] = [];
     
     while (!placed && attempts < 100) {
       const startRow = Math.floor(Math.random() * GRID_SIZE);
@@ -152,10 +166,13 @@ export default function WordFinderGame() {
       const endCol = startCol + (dCol * (word.length - 1));
 
       if (endRow >= 0 && endRow < GRID_SIZE && endCol >= 0 && endCol < GRID_SIZE) {
+        solution = [];
         for (let i = 0; i < word.length; i++) {
           const r = startRow + (dRow * i);
           const c = startCol + (dCol * i);
-          newGrid[r * GRID_SIZE + c] = word[i];
+          const idx = r * GRID_SIZE + c;
+          newGrid[idx] = word[i];
+          solution.push(idx);
         }
         placed = true;
       }
@@ -168,10 +185,14 @@ export default function WordFinderGame() {
     }
 
     setGrid(newGrid);
+    setSolutionIndices(solution);
     setLoading(false);
   };
 
-  const getLineBetween = (startIdx, endIdx) => {
+  // --- 4. GESTURE HANDLING (ROBUST PAGE COORDINATES) ---
+  
+  // Calculates line of letters between two grid indices
+  const getLineBetween = (startIdx: number, endIdx: number) => {
     const startRow = Math.floor(startIdx / GRID_SIZE);
     const startCol = startIdx % GRID_SIZE;
     const endRow = Math.floor(endIdx / GRID_SIZE);
@@ -187,77 +208,93 @@ export default function WordFinderGame() {
     if (!isHorizontal && !isVertical && !isDiagonal) return null; 
 
     const steps = Math.max(Math.abs(diffRow), Math.abs(diffCol));
-    const stepRow = steps === 0 ? 0 : diffRow / steps;
-    const stepCol = steps === 0 ? 0 : diffCol / steps;
-
     const lineIndices = [];
     for (let i = 0; i <= steps; i++) {
-      const r = startRow + (stepRow * i);
-      const c = startCol + (stepCol * i);
+      const r = startRow + (diffRow === 0 ? 0 : Math.sign(diffRow) * i);
+      const c = startCol + (diffCol === 0 ? 0 : Math.sign(diffCol) * i);
       lineIndices.push(r * GRID_SIZE + c);
     }
     return lineIndices;
   };
 
-  const saveFact = async () => {
-    const currentFact = factRef.current; 
-    if (!user || !user.solved) return;
-    const isAlreadySolved = user.solved.some(item => {
-      if (typeof item === 'string') return item === currentFact;
-      return item.text === currentFact;
-    });
-    if (isAlreadySolved) return;
-    await saveSolvedPuzzle(currentFact);
+  const handlePan = (gestureState: any, isStart: boolean) => {
+    if (gameStatus !== 'playing') return;
+
+    // 1. Get absolute position of touch on screen
+    const touchX = gestureState.moveX;
+    const touchY = gestureState.moveY;
+
+    // 2. Get absolute position of the Grid
+    const { x, y, width, height } = layoutRef.current;
+    
+    if (!width || !height) return;
+
+    // 3. Calculate relative position
+    const relativeX = touchX - x;
+    const relativeY = touchY - y;
+
+    // 4. Check Bounds
+    if (relativeX < 0 || relativeY < 0 || relativeX > width || relativeY > height) return;
+
+    // 5. Determine Cell
+    const cellSize = width / GRID_SIZE;
+    const col = Math.floor(relativeX / cellSize);
+    const row = Math.floor(relativeY / cellSize);
+    
+    if (col < 0 || col >= GRID_SIZE || row < 0 || row >= GRID_SIZE) return;
+
+    const index = row * GRID_SIZE + col;
+    updateSelection(index, isStart);
   };
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        if (clearTimerRef.current) {
-          clearTimeout(clearTimerRef.current);
-          clearTimerRef.current = null;
-        }
-        handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, true); 
+      
+      onPanResponderGrant: (evt, gestureState) => {
+        // Measure grid position immediately on touch start to ensure accuracy
+        containerRef.current?.measure((x, y, width, height, pageX, pageY) => {
+          layoutRef.current = { x: pageX, y: pageY, width, height };
+          
+          // Start processing
+          if (clearTimerRef.current) {
+            clearTimeout(clearTimerRef.current);
+            clearTimerRef.current = null;
+          }
+          // Create a synthetic gesture state for the first touch
+          handlePan({ moveX: evt.nativeEvent.pageX, moveY: evt.nativeEvent.pageY }, true);
+        });
       },
-      onPanResponderMove: (evt) => {
-        handlePan(evt.nativeEvent.pageX, evt.nativeEvent.pageY, false);
+      
+      onPanResponderMove: (evt, gestureState) => {
+        handlePan(gestureState, false);
       },
+
       onPanResponderRelease: () => {
+        if (gameStatus !== 'playing') return;
+
         const currentSelection = selectionRef.current.map(s => s.letter).join('');
         const correct = targetWordRef.current;
         selectionOriginRef.current = null;
 
-        if (currentSelection === correct) {
-          saveFact();
+        const reversedSelection = currentSelection.split('').reverse().join('');
+        
+        if (currentSelection === correct || reversedSelection === correct) {
+          setGameStatus('won');
+          saveFact(); 
           setSuccessModalVisible(true);
         } else {
            clearTimerRef.current = setTimeout(() => {
             setSelectedLetters([]);
             selectionRef.current = [];
-          }, 500); 
+          }, 300); 
         }
       }
     })
   ).current;
 
-  const handlePan = (pageX, pageY, isStart) => {
-    const layout = layoutRef.current;
-    if (!layout.width) return; 
-    const relativeX = pageX - layout.pageX;
-    const relativeY = pageY - layout.pageY;
-    if (relativeX < 0 || relativeY < 0 || relativeX > layout.width || relativeY > layout.height) return;
-
-    const cellSize = layout.width / GRID_SIZE;
-    const col = Math.floor(relativeX / cellSize);
-    const row = Math.floor(relativeY / cellSize);
-    const index = row * GRID_SIZE + col;
-
-    if (index >= 0 && index < GRID_SIZE * GRID_SIZE) updateSelection(index, isStart);
-  };
-
-  const updateSelection = (currentIndex, isStart) => {
+  const updateSelection = (currentIndex: number, isStart: boolean) => {
     const currentGrid = gridRef.current;
     if (isStart) {
       selectionOriginRef.current = currentIndex; 
@@ -282,6 +319,44 @@ export default function WordFinderGame() {
     } 
   };
 
+  // --- 5. OTHER HANDLERS ---
+  const handleNextPuzzle = () => {
+    setSuccessModalVisible(false);
+    fetchFact();
+  };
+
+  const handleBackToMenu = () => {
+    setSuccessModalVisible(false);
+    setDifficultyModalVisible(true);
+  };
+
+  const handleSkip = () => {
+    fetchFact(selectedDifficulty || DIFFICULTIES.EASY);
+  };
+
+  const handleGiveUp = () => {
+    setGameStatus('lost');
+    const solution = solutionIndices.map(idx => ({
+      index: idx,
+      letter: grid[idx]
+    }));
+    setSelectedLetters(solution);
+    setSuccessModalVisible(true);
+  };
+
+  const saveFact = async () => {
+    const currentFact = factRef.current; 
+    if (!user || !user.solved) return;
+    
+    const isAlreadySolved = user.solved.some((item: any) => {
+      if (typeof item === 'string') return item === currentFact;
+      return item.text === currentFact;
+    });
+    
+    if (isAlreadySolved) return;
+    await saveSolvedPuzzle(currentFact);
+  };
+
   const handleHintPress = async () => {
     if (hintLevel === 0) {
       setHintLevel(1);
@@ -289,7 +364,7 @@ export default function WordFinderGame() {
       setDefLoading(true);
       try {
         const res = await axios.get(`https://api.api-ninjas.com/v1/dictionary?word=${targetWord}`, {
-          headers: { 'X-Api-Key': FACTS_API_KEY }
+          headers: { 'X-Api-Key': API_KEY }
         });
         if (res.data.definition) {
           let cleanDef = res.data.definition.replace(new RegExp(targetWord, 'gi'), "___");
@@ -338,7 +413,7 @@ export default function WordFinderGame() {
                   style={[styles.diffCard, { backgroundColor: theme.card, borderColor: theme.border }]}
                   onPress={() => startGame(level)}
                 >
-                  <Ionicons name={DIFFICULTIES[level].icon} size={40} color={theme.primary} />
+                  <Ionicons name={DIFFICULTIES[level].icon as any} size={40} color={theme.primary} />
                   <Text style={[styles.diffText, { color: theme.text }]}>{level}</Text>
                 </TouchableOpacity>
               ))}
@@ -370,12 +445,16 @@ export default function WordFinderGame() {
           </View>
         )}
         
+        {/* GRID */}
         <View 
+          ref={containerRef} // Attached to the parent View
           style={[styles.gridContainer, gridStyle]}
-          ref={gridViewRef}
-          {...panResponder.panHandlers} 
-          onLayout={() => gridViewRef.current.measure((x, y, w, h, px, py) => layoutRef.current = { width: w, pageX: px, pageY: py })}
+          {...panResponder.panHandlers} // Attached to the Grid
         >
+          
+          {/* INVISIBLE TOUCH OVERLAY FOR WEB/ANDROID */}
+          <View style={styles.touchOverlay} />
+
           {grid.map((letter, index) => {
             const isSelected = selectedLetters.find(s => s.index === index);
             return (
@@ -384,17 +463,17 @@ export default function WordFinderGame() {
                 style={[
                   styles.cell, 
                   { 
-                    // FIXED: Dynamic Border Color for visibility
                     borderColor: theme.background === '#0F172A' ? '#64748B' : '#eee' 
                   }, 
-                  isSelected && { backgroundColor: theme.primary }
+                  isSelected && { backgroundColor: gameStatus === 'lost' ? theme.danger : theme.primary }
                 ]}
               >
-                {/* FIXED: Dynamic Text Color */}
                 <Text style={[
                   styles.cellText, 
-                  { color: isSelected ? '#FFF' : theme.text } 
-                ]}>{letter}</Text>
+                  { color: isSelected ? '#FFF' : theme.text }
+                ]}>
+                  {letter}
+                </Text>
               </View>
             );
           })}
@@ -402,14 +481,22 @@ export default function WordFinderGame() {
 
         <View style={styles.footer}>
           <TouchableOpacity 
-            style={[styles.gameBtn, { backgroundColor: hintBtnColor, borderBottomColor: '#222' }]} 
-            onPress={handleHintPress} disabled={hintLevel >= 2}
+            style={[styles.gameBtn, { backgroundColor: hintBtnColor, borderBottomColor: '#222', flex: 1 }]} 
+            onPress={handleHintPress} disabled={hintLevel >= 2 || gameStatus !== 'playing'}
           >
-            <Text style={styles.btnText}>{hintLevel === 0 ? "HINT (1/2)" : hintLevel === 1 ? "HINT (2/2)" : "MAX"}</Text>
+            <Text style={styles.btnText}>{hintLevel === 0 ? "HINT 1" : hintLevel === 1 ? "HINT 2" : "MAX"}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.gameBtn, { backgroundColor: theme.danger, borderBottomColor: theme.dangerShadow }]} 
+            style={[styles.gameBtn, { backgroundColor: theme.danger, borderBottomColor: theme.dangerShadow, flex: 1 }]} 
+            onPress={handleGiveUp}
+            disabled={gameStatus !== 'playing'}
+          >
+            <Text style={styles.btnText}>GIVE UP</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.gameBtn, { backgroundColor: '#475569', borderBottomColor: '#1E293B', flex: 0.8 }]} 
             onPress={handleSkip}
           >
             <Text style={styles.btnText}>SKIP</Text>
@@ -422,7 +509,9 @@ export default function WordFinderGame() {
       <Modal visible={successModalVisible} transparent={true} animationType="slide" onRequestClose={handleNextPuzzle}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, modalStyle]}>
-            <Text style={[styles.modalTitle, { color: theme.primary }]}>PUZZLE SOLVED!</Text>
+            <Text style={[styles.modalTitle, { color: gameStatus === 'won' ? theme.primary : theme.danger }]}>
+              {gameStatus === 'won' ? "PUZZLE SOLVED!" : "GAME OVER"}
+            </Text>
             <View style={styles.modalContent}>
               <Text style={[styles.factLabel, { color: theme.subText }]}>DID YOU KNOW?</Text>
               <Text style={[styles.fullFactText, textStyle]}>"{fact}"</Text>
@@ -468,15 +557,25 @@ const styles = StyleSheet.create({
   defLabel: { fontSize: 10, fontWeight: '900', marginBottom: 2 },
   defText: { fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
   
-  gridContainer: { width: '100%', aspectRatio: 1, flexDirection: 'row', flexWrap: 'wrap', borderWidth: 4, borderRadius: 10, overflow: 'hidden' },
+  // GRID
+  gridContainer: { 
+    width: '100%', aspectRatio: 1, flexDirection: 'row', flexWrap: 'wrap', 
+    borderWidth: 4, borderRadius: 10, overflow: 'hidden', position: 'relative' 
+  },
   
-  // Cell Styles (Border and Text Color handled dynamically in render)
+  // Invisible layer to capture touches on Android
+  touchOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.001)', // Almost transparent but clickable
+    zIndex: 10
+  },
+
   cell: { width: '12.5%', height: '12.5%', justifyContent: 'center', alignItems: 'center', borderWidth: 0.5 },
   cellText: { fontSize: 20, fontWeight: 'bold' },
   
-  footer: { marginTop: 20, flexDirection: 'row', gap: 20 },
-  gameBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 25, alignItems: 'center', borderBottomWidth: 5, minWidth: 120 },
-  btnText: { color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 1 },
+  footer: { marginTop: 20, flexDirection: 'row', gap: 10, width: '100%' },
+  gameBtn: { paddingVertical: 12, borderRadius: 15, alignItems: 'center', borderBottomWidth: 4 },
+  btnText: { color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 1 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
   modalCard: { width: 340, borderRadius: 30, padding: 25, alignItems: 'center', borderWidth: 4, borderBottomWidth: 8, elevation: 20 },

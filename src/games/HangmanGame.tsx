@@ -6,10 +6,10 @@ import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
 
 // API CONFIG
-const API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR'; 
+const API_KEY = process.env.EXPO_PUBLIC_API_NINJAS_KEY || ''; 
 const API_URL = 'https://api.api-ninjas.com/v1/randomword';
 
-// FALLBACK WORDS (Used if API fails or no internet)
+// FALLBACK WORDS (Used if API fails)
 const FALLBACK_WORDS = [
   "PUZZLE", "REACT", "NATIVE", "CODING", "JAVASCRIPT", "PYTHON", "DATABASE",
   "SERVER", "MOBILE", "DESIGN", "PIXEL", "VECTOR", "SYNTAX", "DEBUG", "DEPLOY",
@@ -42,61 +42,47 @@ export default function HangmanGame() {
     try {
       console.log("Fetching word...");
       
-      // 1. Attempt API Fetch
+      // 1. Simple Request (No params to avoid API errors)
       const response = await axios.get(API_URL, {
         headers: { 'X-Api-Key': API_KEY },
-        params: { type: 'noun' }, // Prefer nouns
-        timeout: 4000 // Short timeout to fallback quickly
+        timeout: 5000
       });
       
-      // 2. Aggressive Parsing Logic
-      // API Ninjas can return: ["word"], {word: "word"}, or just "word"
-      let candidateWord = '';
+      // 2. Parse Response
+      let candidateWord: any = '';
       const data = response.data;
 
       if (Array.isArray(data) && data.length > 0) {
-        // Handle ["word"] or [{word: "word"}]
         const firstItem = data[0];
-        if (typeof firstItem === 'string') {
-          candidateWord = firstItem;
-        } else if (typeof firstItem === 'object' && firstItem?.word) {
-          candidateWord = firstItem.word;
-        }
+        if (typeof firstItem === 'string') candidateWord = firstItem;
+        else if (typeof firstItem === 'object' && firstItem?.word) candidateWord = firstItem.word;
       } else if (typeof data === 'object' && data?.word) {
-        // Handle {word: "word"}
         candidateWord = data.word;
       } else if (typeof data === 'string') {
-        // Handle "word"
         candidateWord = data;
       }
 
       // 3. Validation
       if (!candidateWord || typeof candidateWord !== 'string') {
-        console.warn("API returned unexpected format:", JSON.stringify(data));
-        // Don't throw error, just trigger fallback
-        useFallbackWord();
-        return;
+        throw new Error("Invalid word format");
       }
 
-      // 4. Clean and Set
+      // 4. Clean Word
       const cleanWord = candidateWord.replace(/[^a-zA-Z]/g, '').toUpperCase();
 
       if (cleanWord.length < 3) {
-        console.warn("Word too short, using fallback.");
-        useFallbackWord();
-        return;
+        throw new Error("Word too short");
       }
 
       setWord(cleanWord);
       setLoading(false);
 
     } catch (error: any) {
-      console.log("API Request Failed, switching to Offline Mode.");
+      console.error("Hangman API Failed (Using Fallback):", error.message || error);
       useFallbackWord();
     }
   };
 
-  // Helper to load local word
   const useFallbackWord = () => {
     const randomFallback = FALLBACK_WORDS[Math.floor(Math.random() * FALLBACK_WORDS.length)];
     setWord(randomFallback);

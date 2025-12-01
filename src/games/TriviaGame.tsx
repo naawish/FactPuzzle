@@ -1,4 +1,3 @@
-// src/games/TriviaGame.js
 import React, { useState, useEffect, useContext } from 'react';
 import { 
   View, 
@@ -20,22 +19,36 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
 
-const FACTS_API_KEY = 'iz+uqX134B6KBrJ3v9uVyg==OrFntg2ErMgCBFpR'; 
+// API CONFIG (Using Env Var)
+const API_KEY = process.env.EXPO_PUBLIC_API_NINJAS_KEY || '';
+const API_URL = 'https://api.api-ninjas.com/v1/trivia';
+
+// HELPER: Web-Safe Keyboard Dismiss Wrapper
+const KeyboardWrapper = ({ children }: { children: React.ReactNode }) => {
+  if (Platform.OS === 'web') {
+    return <View style={{ flex: 1 }}>{children}</View>;
+  }
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={{ flex: 1 }}>{children}</View>
+    </TouchableWithoutFeedback>
+  );
+};
 
 export default function TriviaGame() {
-  const { user, saveSolvedPuzzle } = useContext(AuthContext);
+  const { saveSolvedPuzzle } = useContext(AuthContext);
   const { theme } = useContext(ThemeContext); 
 
-  const [question, setQuestion] = useState('');
-  const [correctAnswer, setCorrectAnswer] = useState('');
-  const [category, setCategory] = useState('');
-  const [userAnswer, setUserAnswer] = useState('');
+  const [question, setQuestion] = useState<string>('');
+  const [correctAnswer, setCorrectAnswer] = useState<string>('');
+  const [category, setCategory] = useState<string>('');
+  const [userAnswer, setUserAnswer] = useState<string>('');
   
-  const [loading, setLoading] = useState(true);
-  const [gameStatus, setGameStatus] = useState('playing'); 
+  const [loading, setLoading] = useState<boolean>(true);
+  const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing'); 
   
-  // NEW: State for the Incorrect Popup
-  const [retryModalVisible, setRetryModalVisible] = useState(false);
+  // Modal States
+  const [retryModalVisible, setRetryModalVisible] = useState<boolean>(false);
 
   useEffect(() => {
     fetchTrivia();
@@ -48,8 +61,8 @@ export default function TriviaGame() {
     setRetryModalVisible(false);
     
     try {
-      const response = await axios.get('https://api.api-ninjas.com/v1/trivia', {
-        headers: { 'X-Api-Key': FACTS_API_KEY }
+      const response = await axios.get(API_URL, {
+        headers: { 'X-Api-Key': API_KEY }
       });
       
       if (response.data && response.data.length > 0) {
@@ -61,7 +74,11 @@ export default function TriviaGame() {
         Alert.alert("Error", "No questions found.");
       }
     } catch (error) {
-      Alert.alert("Error", "Could not fetch trivia.");
+      console.error("Trivia Error:", error);
+      // Fallback for offline testing/demo
+      setQuestion("What is the capital of France?");
+      setCorrectAnswer("Paris");
+      setCategory("geography");
     } finally {
       setLoading(false);
     }
@@ -73,12 +90,12 @@ export default function TriviaGame() {
     const cleanUser = userAnswer.trim().toLowerCase();
     const cleanCorrect = correctAnswer.trim().toLowerCase();
 
-    if (cleanUser === cleanCorrect) {
+    // Simple containment check allows for minor typos or extra words
+    if (cleanUser === cleanCorrect || cleanUser.includes(cleanCorrect)) {
       setGameStatus('won');
       const factString = `Q: ${question}\nA: ${correctAnswer}`;
-      saveSolvedPuzzle(factString, 'TRIVIA');
+      saveSolvedPuzzle(factString);
     } else {
-      // UPDATED: Show Custom Modal instead of Alert
       setRetryModalVisible(true);
     }
   };
@@ -107,7 +124,6 @@ export default function TriviaGame() {
   
   const textStyle = { color: theme.text };
 
-  // Modal Styles (3D Look)
   const modalStyle = { 
     backgroundColor: theme.card, 
     borderColor: theme.border, 
@@ -123,72 +139,73 @@ export default function TriviaGame() {
       imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
       resizeMode="cover"
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardWrapper>
         <KeyboardAvoidingView 
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
         >
           <ScrollView contentContainerStyle={styles.scrollContent}>
             
-            {/* CATEGORY BADGE */}
-            <View style={[styles.badge, { backgroundColor: theme.primary, borderColor: theme.background }]}>
-              <Text style={styles.badgeText}>{category.toUpperCase()}</Text>
-            </View>
+            {/* WRAPPER FOR WEB CENTERING */}
+            <View style={styles.webWrapper}>
 
-            {/* QUESTION CARD */}
-            <View style={[styles.card, cardStyle]}>
-              <Text style={[styles.label, { color: theme.primary }]}>QUESTION:</Text>
-              <Text style={[styles.questionText, textStyle]}>{question}</Text>
-            </View>
+              {/* CATEGORY BADGE */}
+              <View style={[styles.badge, { backgroundColor: theme.primary, borderColor: theme.background }]}>
+                <Text style={styles.badgeText}>{category.toUpperCase()}</Text>
+              </View>
 
-            {/* INPUT AREA */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: theme.subText, marginBottom: 5 }]}>YOUR ANSWER:</Text>
-              <TextInput 
-                style={[styles.input, inputStyle]}
-                value={userAnswer}
-                onChangeText={setUserAnswer}
-                placeholder="Type here..."
-                placeholderTextColor={theme.subText}
-                onSubmitEditing={checkAnswer}
-              />
-            </View>
+              {/* QUESTION CARD */}
+              <View style={[styles.card, cardStyle]}>
+                <Text style={[styles.label, { color: theme.primary }]}>QUESTION:</Text>
+                <Text style={[styles.questionText, textStyle]}>{question}</Text>
+              </View>
 
-            {/* ACTIONS */}
-            <View style={styles.btnRow}>
-              <TouchableOpacity 
-                style={[styles.actionBtn, styles.giveUpBtn, { borderBottomColor: theme.shadow }]} 
-                onPress={giveUp}
-              >
-                <Text style={[styles.btnText, { color: '#555' }]}>GIVE UP</Text>
-              </TouchableOpacity>
+              {/* INPUT AREA */}
+              <View style={styles.inputContainer}>
+                <Text style={[styles.label, { color: theme.subText, marginBottom: 5 }]}>YOUR ANSWER:</Text>
+                <TextInput 
+                  style={[styles.input, inputStyle]}
+                  value={userAnswer}
+                  onChangeText={setUserAnswer}
+                  placeholder="Type here..."
+                  placeholderTextColor={theme.subText}
+                  onSubmitEditing={checkAnswer}
+                />
+              </View>
 
-              <TouchableOpacity 
-                style={[styles.actionBtn, btnStyle]} 
-                onPress={checkAnswer}
-              >
-                <Text style={[styles.btnText, { color: '#FFF' }]}>SUBMIT</Text>
-              </TouchableOpacity>
+              {/* ACTIONS */}
+              <View style={styles.btnRow}>
+                <TouchableOpacity 
+                  style={[styles.actionBtn, styles.giveUpBtn, { borderBottomColor: theme.shadow }]} 
+                  onPress={giveUp}
+                >
+                  <Text style={[styles.btnText, { color: '#555' }]}>GIVE UP</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.actionBtn, btnStyle]} 
+                  onPress={checkAnswer}
+                >
+                  <Text style={[styles.btnText, { color: '#FFF' }]}>SUBMIT</Text>
+                </TouchableOpacity>
+              </View>
+
             </View>
 
           </ScrollView>
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+      </KeyboardWrapper>
 
       {/* --- INCORRECT / RETRY MODAL --- */}
       <Modal visible={retryModalVisible} transparent={true} animationType="fade" onRequestClose={() => setRetryModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, modalStyle]}>
-            
-            {/* Header: Red/Pink for Danger */}
             <Text style={[styles.modalTitle, { color: theme.danger }]}>INCORRECT</Text>
-            
             <View style={styles.modalContent}>
               <Text style={[styles.answerText, textStyle, { fontSize: 18, lineHeight: 26 }]}>
                 That is not the right answer.
               </Text>
             </View>
-
             <TouchableOpacity 
               style={[styles.nextBtn, btnStyle]} 
               onPress={() => setRetryModalVisible(false)}
@@ -203,7 +220,6 @@ export default function TriviaGame() {
       <Modal visible={gameStatus !== 'playing'} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, modalStyle]}>
-            
             <Text style={[
               styles.modalTitle, 
               { color: gameStatus === 'won' ? theme.success : theme.danger }
@@ -234,6 +250,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { flexGrow: 1, padding: 20, alignItems: 'center', justifyContent: 'center' },
+  
+  webWrapper: { width: '100%', maxWidth: 500, alignItems: 'center' },
 
   badge: {
     paddingVertical: 6, paddingHorizontal: 15, borderRadius: 20, borderWidth: 2,
@@ -266,7 +284,7 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
   modalCard: { 
-    width: '85%', borderRadius: 30, padding: 30, alignItems: 'center', 
+    width: '85%', maxWidth: 400, borderRadius: 30, padding: 30, alignItems: 'center', 
     borderWidth: 4, borderBottomWidth: 8, elevation: 20 
   },
   modalTitle: { fontSize: 32, fontWeight: '900', marginBottom: 20, letterSpacing: 2 },

@@ -1,4 +1,3 @@
-// src/components/ui/Button3D.tsx
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
@@ -13,6 +12,9 @@ interface Button3DProps {
   loading?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  // NEW: Accessibility Props
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export const Button3D: React.FC<Button3DProps> = ({ 
@@ -23,12 +25,14 @@ export const Button3D: React.FC<Button3DProps> = ({
   disabled = false,
   loading = false,
   style,
-  textStyle
+  textStyle,
+  // Default the label to the text content if not provided
+  accessibilityLabel = label, 
+  accessibilityHint
 }) => {
   const { isDark } = useTheme();
   const themeColors = isDark ? COLORS.dark : COLORS.light;
 
-  // Resolve Colors based on Variant
   let bgColor = themeColors.primary;
   let shadowColor = themeColors.shadow;
   let textColor = '#FFFFFF';
@@ -45,14 +49,12 @@ export const Button3D: React.FC<Button3DProps> = ({
       break;
     case 'success':
       bgColor = themeColors.success;
-      shadowColor = '#15803d'; // Hardcoded dark green for simplicity
+      shadowColor = '#15803d';
       break;
   }
 
-  // Resolve Sizing
   let paddingV = 16;
   let fontSize = 18;
-  
   if (size === 'sm') {
     paddingV = 10;
     fontSize = 14;
@@ -63,6 +65,13 @@ export const Button3D: React.FC<Button3DProps> = ({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.7}
+      // --- NEW ACCESSIBILITY ATTRIBUTES ---
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel} // Reads "Login Button"
+      accessibilityHint={accessibilityHint}   // Reads "Double tap to sign in"
+      accessibilityState={{ disabled, busy: loading }}
+      // ------------------------------------
       style={[
         styles.base,
         { 
@@ -88,11 +97,11 @@ export const Button3D: React.FC<Button3DProps> = ({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 50, // Pill shape
+    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderBottomWidth: 6, // The 3D effect
+    borderBottomWidth: 6,
     minWidth: 100,
   },
   text: {

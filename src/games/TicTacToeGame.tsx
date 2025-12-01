@@ -1,20 +1,13 @@
-// src/games/TicTacToeGame.js
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ImageBackground, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native'; // <--- 1. IMPORT THIS
+import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
 import { Ionicons } from '@expo/vector-icons';
-
-// WINNING COMBINATIONS
-const WIN_CONDITIONS = [
-  [0, 1, 2], [3, 4, 5], [6, 7, 8], 
-  [0, 3, 6], [1, 4, 7], [2, 5, 8], 
-  [0, 4, 8], [2, 4, 6]             
-];
+import { checkTicTacToeWinner } from '../utils/gameLogic'; // <--- IMPORTED LOGIC
 
 // MODES
-const MODES = {
+const MODES: Record<string, { label: string, icon: keyof typeof Ionicons.glyphMap }> = {
   EASY: { label: 'EASY', icon: 'star-outline' },
   MEDIUM: { label: 'MEDIUM', icon: 'star-half' },
   HARD: { label: 'IMPOSSIBLE', icon: 'star' },
@@ -22,15 +15,15 @@ const MODES = {
 };
 
 export default function TicTacToeGame() {
-  const navigation = useNavigation(); // <--- 2. INITIALIZE NAVIGATION
+  const navigation = useNavigation();
   const { theme } = useContext(ThemeContext);
   const { saveSolvedPuzzle } = useContext(AuthContext);
 
   // Game State
-  const [board, setBoard] = useState(Array(9).fill(null));
+  const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null));
   const [isXNext, setIsXNext] = useState(true); 
-  const [winner, setWinner] = useState(null); 
-  const [gameMode, setGameMode] = useState(null); 
+  const [winner, setWinner] = useState<string | null>(null); 
+  const [gameMode, setGameMode] = useState<any>(null); 
   const [difficultyModalVisible, setDifficultyModalVisible] = useState(true);
   const [isCpuThinking, setIsCpuThinking] = useState(false);
 
@@ -45,14 +38,15 @@ export default function TicTacToeGame() {
   }, [isXNext, winner, gameMode]);
 
   // --- CORE LOGIC ---
-  const handlePress = (index) => {
+  const handlePress = (index: number) => {
     if (board[index] || winner || isCpuThinking) return;
 
     const newBoard = [...board];
     newBoard[index] = isXNext ? 'X' : 'O';
     setBoard(newBoard);
     
-    const result = checkWinner(newBoard);
+    // Use imported utility
+    const result = checkTicTacToeWinner(newBoard);
     if (result) {
       endGame(result);
     } else {
@@ -60,22 +54,11 @@ export default function TicTacToeGame() {
     }
   };
 
-  const endGame = (result) => {
+  const endGame = (result: string) => {
     setWinner(result);
     if (result === 'X' && gameMode.label !== '2 PLAYER') {
       saveSolvedPuzzle(`Beat TicTacToe on ${gameMode.label}`);
     }
-  };
-
-  const checkWinner = (currentBoard) => {
-    for (let logic of WIN_CONDITIONS) {
-      const [a, b, c] = logic;
-      if (currentBoard[a] && currentBoard[a] === currentBoard[b] && currentBoard[a] === currentBoard[c]) {
-        return currentBoard[a];
-      }
-    }
-    if (!currentBoard.includes(null)) return 'Draw';
-    return null;
   };
 
   // --- CPU INTELLIGENCE ---
@@ -92,26 +75,26 @@ export default function TicTacToeGame() {
       moveIndex = getBestMove(board);
     }
 
-    if (moveIndex !== null) {
+    if (moveIndex !== null && moveIndex !== undefined) {
       const newBoard = [...board];
       newBoard[moveIndex] = 'O';
       setBoard(newBoard);
       
-      const result = checkWinner(newBoard);
+      const result = checkTicTacToeWinner(newBoard);
       if (result) endGame(result);
       else setIsXNext(true);
     }
     setIsCpuThinking(false);
   };
 
-  const getRandomMove = (currentBoard) => {
+  const getRandomMove = (currentBoard: (string | null)[]) => {
     const available = currentBoard.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
     if (available.length === 0) return null;
     return available[Math.floor(Math.random() * available.length)];
   };
 
   // --- MINIMAX ALGORITHM ---
-  const getBestMove = (currentBoard) => {
+  const getBestMove = (currentBoard: (string | null)[]) => {
     let bestScore = -Infinity;
     let move = null;
     
@@ -129,8 +112,8 @@ export default function TicTacToeGame() {
     return move;
   };
 
-  const minimax = (board, depth, isMaximizing) => {
-    const result = checkWinner(board);
+  const minimax = (board: (string | null)[], depth: number, isMaximizing: boolean) => {
+    const result = checkTicTacToeWinner(board);
     if (result === 'O') return 10 - depth;
     if (result === 'X') return depth - 10;
     if (result === 'Draw') return 0;
@@ -161,7 +144,7 @@ export default function TicTacToeGame() {
   };
 
   // --- NAVIGATION ---
-  const startGame = (modeKey) => {
+  const startGame = (modeKey: string) => {
     setGameMode(MODES[modeKey]);
     setBoard(Array(9).fill(null));
     setIsXNext(true);
@@ -180,10 +163,9 @@ export default function TicTacToeGame() {
     setDifficultyModalVisible(true);
   };
 
-  // 3. EXIT HANDLER
   const handleExitToHub = () => {
     setWinner(null);
-    navigation.goBack(); // This goes back to Home Screen (Game Hub)
+    navigation.goBack(); 
   };
 
   // --- STYLES ---
@@ -289,7 +271,7 @@ export default function TicTacToeGame() {
 
             <View style={styles.modalBtnRow}>
               
-              {/* UPDATED: CALLS HANDLE EXIT */}
+              {/* MENU BUTTON - GOES BACK TO HUB */}
               <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E0E0E0', borderBottomColor: '#999' }]} onPress={handleExitToHub}>
                 <Text style={[styles.btnText, { color: '#555', fontSize: 13 }]}>MENU</Text>
               </TouchableOpacity>

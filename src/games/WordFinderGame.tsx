@@ -9,8 +9,10 @@ import {
   ImageBackground, 
   Alert, 
   PanResponder, 
-  Dimensions
+  LayoutChangeEvent,
+  Platform
 } from 'react-native';
+import { useNavigation } from 'expo-router'; // <--- 1. IMPORT THIS
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
@@ -56,6 +58,7 @@ const DIFFICULTIES: Record<string, Difficulty> = {
 };
 
 export default function WordFinderGame() {
+  const navigation = useNavigation(); // <--- 2. INITIALIZE NAVIGATION
   const { user, saveSolvedPuzzle } = useContext(AuthContext); 
   const { theme } = useContext(ThemeContext); 
 
@@ -75,7 +78,8 @@ export default function WordFinderGame() {
   const [difficultyModalVisible, setDifficultyModalVisible] = useState(true); 
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null); 
   const [successModalVisible, setSuccessModalVisible] = useState(false);
-  
+  const [gridDimensions, setGridDimensions] = useState({ width: 0, height: 0 });
+
   // Hints
   const [hintLevel, setHintLevel] = useState(0);
   const [definition, setDefinition] = useState('');
@@ -87,11 +91,8 @@ export default function WordFinderGame() {
   const factRef = useRef('');
   const selectionRef = useRef<{index: number, letter: string}[]>([]);  
   const selectionOriginRef = useRef<number | null>(null); 
-  
-  // Layout Refs for coordinate calculation
   const containerRef = useRef<View>(null);
   const layoutRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
-
   const clearTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync Refs
@@ -189,9 +190,7 @@ export default function WordFinderGame() {
     setLoading(false);
   };
 
-  // --- 4. GESTURE HANDLING (ROBUST PAGE COORDINATES) ---
-  
-  // Calculates line of letters between two grid indices
+  // --- 4. GESTURE LOGIC ---
   const getLineBetween = (startIdx: number, endIdx: number) => {
     const startRow = Math.floor(startIdx / GRID_SIZE);
     const startCol = startIdx % GRID_SIZE;
@@ -217,26 +216,22 @@ export default function WordFinderGame() {
     return lineIndices;
   };
 
-  const handlePan = (gestureState: any, isStart: boolean) => {
+  const handlePan = (evt: any, isStart: boolean) => {
     if (gameStatus !== 'playing') return;
 
-    // 1. Get absolute position of touch on screen
-    const touchX = gestureState.moveX;
-    const touchY = gestureState.moveY;
+    const touchX = evt.moveX;
+    const touchY = evt.moveY;
 
-    // 2. Get absolute position of the Grid
+    // Get stored layout
     const { x, y, width, height } = layoutRef.current;
     
     if (!width || !height) return;
 
-    // 3. Calculate relative position
     const relativeX = touchX - x;
     const relativeY = touchY - y;
 
-    // 4. Check Bounds
     if (relativeX < 0 || relativeY < 0 || relativeX > width || relativeY > height) return;
 
-    // 5. Determine Cell
     const cellSize = width / GRID_SIZE;
     const col = Math.floor(relativeX / cellSize);
     const row = Math.floor(relativeY / cellSize);
@@ -250,24 +245,29 @@ export default function WordFinderGame() {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
       
       onPanResponderGrant: (evt, gestureState) => {
-        // Measure grid position immediately on touch start to ensure accuracy
+        if (gameStatus !== 'playing') return;
+        
+        // Re-measure on start to be safe
         containerRef.current?.measure((x, y, width, height, pageX, pageY) => {
           layoutRef.current = { x: pageX, y: pageY, width, height };
           
-          // Start processing
           if (clearTimerRef.current) {
             clearTimeout(clearTimerRef.current);
             clearTimerRef.current = null;
           }
-          // Create a synthetic gesture state for the first touch
+          // Use pageX/Y from native event for the first touch
           handlePan({ moveX: evt.nativeEvent.pageX, moveY: evt.nativeEvent.pageY }, true);
         });
       },
       
       onPanResponderMove: (evt, gestureState) => {
+        if (gameStatus !== 'playing') return;
+        // Use moveX/Y from gestureState for dragging
         handlePan(gestureState, false);
       },
 
@@ -319,7 +319,7 @@ export default function WordFinderGame() {
     } 
   };
 
-  // --- 5. OTHER HANDLERS ---
+  // --- 5. ACTIONS ---
   const handleNextPuzzle = () => {
     setSuccessModalVisible(false);
     fetchFact();
@@ -327,7 +327,7 @@ export default function WordFinderGame() {
 
   const handleBackToMenu = () => {
     setSuccessModalVisible(false);
-    setDifficultyModalVisible(true);
+    navigation.goBack(); // <--- 3. CORRECT NAVIGATION BACK
   };
 
   const handleSkip = () => {
@@ -447,12 +447,10 @@ export default function WordFinderGame() {
         
         {/* GRID */}
         <View 
-          ref={containerRef} // Attached to the parent View
+          ref={containerRef}
           style={[styles.gridContainer, gridStyle]}
-          {...panResponder.panHandlers} // Attached to the Grid
+          {...panResponder.panHandlers} 
         >
-          
-          {/* INVISIBLE TOUCH OVERLAY FOR WEB/ANDROID */}
           <View style={styles.touchOverlay} />
 
           {grid.map((letter, index) => {
@@ -462,9 +460,7 @@ export default function WordFinderGame() {
                 key={index} 
                 style={[
                   styles.cell, 
-                  { 
-                    borderColor: theme.background === '#0F172A' ? '#64748B' : '#eee' 
-                  }, 
+                  { borderColor: theme.background === '#0F172A' ? '#64748B' : '#eee' }, 
                   isSelected && { backgroundColor: gameStatus === 'lost' ? theme.danger : theme.primary }
                 ]}
               >
@@ -505,7 +501,7 @@ export default function WordFinderGame() {
 
       </View>
 
-      {/* 3. SUCCESS MODAL */}
+      {/* SUCCESS / FAIL MODAL */}
       <Modal visible={successModalVisible} transparent={true} animationType="slide" onRequestClose={handleNextPuzzle}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, modalStyle]}>
@@ -557,16 +553,14 @@ const styles = StyleSheet.create({
   defLabel: { fontSize: 10, fontWeight: '900', marginBottom: 2 },
   defText: { fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
   
-  // GRID
   gridContainer: { 
     width: '100%', aspectRatio: 1, flexDirection: 'row', flexWrap: 'wrap', 
     borderWidth: 4, borderRadius: 10, overflow: 'hidden', position: 'relative' 
   },
   
-  // Invisible layer to capture touches on Android
   touchOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.001)', // Almost transparent but clickable
+    backgroundColor: 'rgba(0,0,0,0.001)',
     zIndex: 10
   },
 

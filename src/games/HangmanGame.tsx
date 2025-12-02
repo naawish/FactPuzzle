@@ -1,92 +1,89 @@
-// src/games/HangmanGame.tsx
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, ImageBackground, ScrollView } from 'react-native';
+import { 
+  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, 
+  Modal, ImageBackground, ScrollView, Alert 
+} from 'react-native';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext'; 
+import { Button3D } from '../components/ui/Button3D'; // Using your reusable component
+import { COLORS, LAYOUT, SPACING, TEXT } from '../theme/theme';
 
-// API CONFIG
-const API_KEY = process.env.EXPO_PUBLIC_API_NINJAS_KEY || ''; 
-const API_URL = 'https://api.api-ninjas.com/v1/randomword';
+// 1. NEW API: Free Dictionary API (No Key Required)
+const DICT_API = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
 
-// FALLBACK WORDS (Used if API fails)
-const FALLBACK_WORDS = [
-  "PUZZLE", "REACT", "NATIVE", "CODING", "JAVASCRIPT", "PYTHON", "DATABASE",
-  "SERVER", "MOBILE", "DESIGN", "PIXEL", "VECTOR", "SYNTAX", "DEBUG", "DEPLOY",
-  "WIDGET", "SCREEN", "BUTTON", "INPUT", "STYLE", "LAYOUT", "LOGIC", "ASYNC",
-  "ORANGE", "PURPLE", "ROBOT", "SYSTEM", "MEMORY", "STORAGE", "NETWORK"
+// 2. CURATED WORD LIST (Ensures playable, common words)
+const WORD_POOL = [
+  "GALAXY", "JUNGLE", "PIRATE", "ROCKET", "CASTLE", "DRAGON", "WIZARD", 
+  "PLANET", "ROBOT", "CIRCUS", "CACTUS", "TURTLE", "BANANA", "GUITAR", 
+  "SUMMER", "WINTER", "FROZEN", "SPIRIT", "FUTURE", "NATURE", "ORANGE", 
+  "PURPLE", "YELLOW", "WINDOW", "DOCTOR", "LAWYER", "POLICE", "ARTIST",
+  "MONKEY", "DONKEY", "RABBIT", "ZOMBIE", "VAMPIRE", "GHOST", "SHADOW",
+  "BRIDGE", "STREAM", "FOREST", "ISLAND", "CANYON", "DESERT", "OCEAN",
+  "COFFEE", "DINNER", "PICNIC", "BURGER", "CHEESE", "COOKIE", "MUFFIN"
 ];
 
 export default function HangmanGame() {
   const { saveSolvedPuzzle } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext); 
+  const { theme, isDark } = useContext(ThemeContext); 
+  const themeColors = isDark ? COLORS.dark : COLORS.light;
 
+  // Game State
   const [word, setWord] = useState('');
-  const [loading, setLoading] = useState(true);
   const [guessedLetters, setGuessedLetters] = useState(new Set<string>());
   const [lives, setLives] = useState(6);
   const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing'); 
-  const [errorVisible, setErrorVisible] = useState(false);
+  
+  // Hint State
+  const [definition, setDefinition] = useState('');
+  const [hintVisible, setHintVisible] = useState(false);
+  const [loadingHint, setLoadingHint] = useState(false);
 
   useEffect(() => {
-    fetchWord();
+    startNewGame();
   }, []);
 
-  const fetchWord = async () => {
-    setLoading(true);
-    setErrorVisible(false);
+  const startNewGame = () => {
     setGameStatus('playing');
     setGuessedLetters(new Set());
     setLives(6);
+    setDefinition('');
+    setHintVisible(false);
     
-    try {
-      console.log("Fetching word...");
-      
-      // 1. Simple Request (No params to avoid API errors)
-      const response = await axios.get(API_URL, {
-        headers: { 'X-Api-Key': API_KEY },
-        timeout: 5000
-      });
-      
-      // 2. Parse Response
-      let candidateWord: any = '';
-      const data = response.data;
-
-      if (Array.isArray(data) && data.length > 0) {
-        const firstItem = data[0];
-        if (typeof firstItem === 'string') candidateWord = firstItem;
-        else if (typeof firstItem === 'object' && firstItem?.word) candidateWord = firstItem.word;
-      } else if (typeof data === 'object' && data?.word) {
-        candidateWord = data.word;
-      } else if (typeof data === 'string') {
-        candidateWord = data;
-      }
-
-      // 3. Validation
-      if (!candidateWord || typeof candidateWord !== 'string') {
-        throw new Error("Invalid word format");
-      }
-
-      // 4. Clean Word
-      const cleanWord = candidateWord.replace(/[^a-zA-Z]/g, '').toUpperCase();
-
-      if (cleanWord.length < 3) {
-        throw new Error("Word too short");
-      }
-
-      setWord(cleanWord);
-      setLoading(false);
-
-    } catch (error: any) {
-      console.error("Hangman API Failed (Using Fallback):", error.message || error);
-      useFallbackWord();
-    }
+    // Pick random word from local pool
+    const randomWord = WORD_POOL[Math.floor(Math.random() * WORD_POOL.length)];
+    setWord(randomWord);
   };
 
-  const useFallbackWord = () => {
-    const randomFallback = FALLBACK_WORDS[Math.floor(Math.random() * FALLBACK_WORDS.length)];
-    setWord(randomFallback);
-    setLoading(false);
+  // --- API CALL: FETCH DEFINITION ---
+  const handleGetHint = async () => {
+    if (definition) {
+      setHintVisible(true); // Already fetched
+      return;
+    }
+
+    setLoadingHint(true);
+    try {
+      const response = await axios.get(`${DICT_API}${word.toLowerCase()}`);
+      
+      if (response.data && response.data[0]) {
+        // Extract first definition
+        let rawDef = response.data[0].meanings[0].definitions[0].definition;
+        
+        // Hide the word if it appears in the definition (Spoiler protection)
+        const cleanDef = rawDef.replace(new RegExp(word, 'gi'), "____");
+        
+        setDefinition(cleanDef);
+        setHintVisible(true);
+      } else {
+        Alert.alert("Hint Unavailable", "No definition found for this word.");
+      }
+    } catch (error) {
+      console.error("Hint API Error:", error);
+      Alert.alert("Connection Error", "Could not fetch hint.");
+    } finally {
+      setLoadingHint(false);
+    }
   };
 
   const handleGuess = (letter: string) => {
@@ -111,8 +108,8 @@ export default function HangmanGame() {
 
   // --- RENDERERS ---
   const renderStickFigure = () => {
-    const color = theme.text;
-    const ropeColor = theme.primary; 
+    const color = themeColors.text;
+    const ropeColor = themeColors.primary; 
 
     return (
       <View style={styles.gallowsContainer}>
@@ -135,8 +132,8 @@ export default function HangmanGame() {
     return (
       <View style={styles.wordRow}>
         {word.split('').map((char, index) => (
-          <View key={index} style={[styles.charSlot, { borderBottomColor: theme.text }]}>
-            <Text style={[styles.charText, { color: theme.text }]}>
+          <View key={index} style={[styles.charSlot, { borderBottomColor: themeColors.text }]}>
+            <Text style={[styles.charText, { color: themeColors.text }]}>
               {(guessedLetters.has(char) || gameStatus === 'lost') ? char : ''}
             </Text>
           </View>
@@ -153,17 +150,17 @@ export default function HangmanGame() {
           const isSelected = guessedLetters.has(char);
           const isCorrect = word.includes(char);
           
-          let btnColor = theme.card;
-          let txtColor = theme.text;
-          let borderColor = theme.border;
+          let btnColor = themeColors.card;
+          let txtColor = themeColors.text;
+          let borderColor = themeColors.border;
 
           if (isSelected) {
             if (isCorrect) {
-              btnColor = theme.success; 
-              borderColor = theme.success;
+              btnColor = themeColors.success; 
+              borderColor = themeColors.success;
               txtColor = '#FFF';
             } else {
-              btnColor = theme.background === '#0F172A' ? '#333' : '#CCC'; 
+              btnColor = isDark ? '#333' : '#CCC'; 
               borderColor = 'transparent';
               txtColor = '#888';
             }
@@ -185,75 +182,79 @@ export default function HangmanGame() {
   };
 
   // Styles Helpers
-  const cardStyle = { backgroundColor: theme.card, borderColor: theme.border };
-  const modalStyle = { backgroundColor: theme.card, borderColor: theme.border, borderBottomColor: theme.shadow };
-  const btnStyle = { backgroundColor: theme.primary, borderBottomColor: theme.shadow };
-
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={theme.primary}/></View>;
+  const cardStyle = { backgroundColor: themeColors.card, borderColor: themeColors.border };
+  const modalStyle = { ...LAYOUT.card3D, backgroundColor: themeColors.card, borderColor: themeColors.border, borderBottomColor: themeColors.shadow, width: '85%', maxWidth: 400 };
 
   return (
     <ImageBackground 
       source={require('../../assets/background.png')} 
-      style={[styles.container, { backgroundColor: theme.background }]}
-      imageStyle={{ opacity: theme.background === '#0F172A' ? 0.2 : 1 }}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+      imageStyle={{ opacity: isDark ? 0.2 : 1 }}
       resizeMode="cover"
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-        <View style={styles.gameWrapper}>
+        <View style={styles.webContainer}>
+
+          {/* 1. DRAWING AREA */}
           <View style={[styles.drawCard, cardStyle]}>
             {renderStickFigure()}
           </View>
 
+          {/* 2. WORD DISPLAY */}
           {renderWord()}
 
-          <Text style={[styles.status, { color: theme.subText }]}>
-            LIVES: <Text style={{ color: theme.danger, fontWeight: 'bold' }}>{lives}</Text>
+          {/* 3. LIVES STATUS */}
+          <Text style={[styles.status, { color: themeColors.subText }]}>
+            LIVES: <Text style={{ color: themeColors.danger, fontWeight: 'bold' }}>{lives}</Text>
           </Text>
 
+          {/* 4. KEYBOARD */}
           {renderKeyboard()}
+          
+          {/* 5. HINT BUTTON */}
+          <View style={styles.footer}>
+             <Button3D 
+               label={loadingHint ? "LOADING..." : "GET HINT"} 
+               onPress={handleGetHint}
+               variant="neutral"
+               disabled={gameStatus !== 'playing' || loadingHint}
+               style={{ width: '100%' }}
+             />
+          </View>
+
         </View>
       </ScrollView>
 
-      {/* --- ERROR MODAL --- */}
-      <Modal visible={errorVisible} transparent={true} animationType="fade">
+      {/* --- HINT MODAL --- */}
+      <Modal visible={hintVisible} transparent={true} animationType="fade" onRequestClose={() => setHintVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, modalStyle]}>
-            <Text style={[styles.modalTitle, { color: theme.danger }]}>ERROR</Text>
-            <View style={styles.modalContent}>
-              <Text style={[styles.label, { color: theme.text, textAlign: 'center' }]}>
-                Connection failed. Using offline mode.
-              </Text>
-            </View>
-            <TouchableOpacity style={[styles.nextBtn, btnStyle]} onPress={() => setErrorVisible(false)}>
-              <Text style={styles.btnText}>OK</Text>
-            </TouchableOpacity>
+          <View style={modalStyle}>
+            <Text style={[styles.modalTitle, { color: themeColors.primary }]}>HINT</Text>
+            <Text style={{ color: themeColors.text, fontSize: 18, textAlign: 'center', marginBottom: 20, fontStyle: 'italic' }}>
+              "{definition}"
+            </Text>
+            <Button3D label="CLOSE" onPress={() => setHintVisible(false)} />
           </View>
         </View>
       </Modal>
 
-      {/* GAME OVER / WIN MODAL */}
-      <Modal visible={gameStatus !== 'playing'} transparent={true} animationType="fade">
+      {/* --- GAME OVER MODAL --- */}
+      <Modal visible={gameStatus !== 'playing'} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, modalStyle]}>
+          <View style={modalStyle}>
             <Text style={[
               styles.modalTitle, 
-              { color: gameStatus === 'won' ? theme.success : theme.danger }
+              { color: gameStatus === 'won' ? themeColors.success : themeColors.danger }
             ]}>
               {gameStatus === 'won' ? "YOU ESCAPED!" : "GAME OVER"}
             </Text>
             
             <View style={styles.modalContent}>
-              <Text style={[styles.label, { color: theme.subText }]}>THE WORD WAS:</Text>
-              <Text style={[styles.revealWord, { color: theme.text }]}>{word}</Text>
+              <Text style={[styles.label, { color: themeColors.subText }]}>THE WORD WAS:</Text>
+              <Text style={[styles.revealWord, { color: themeColors.text }]}>{word}</Text>
             </View>
 
-            <TouchableOpacity 
-              style={[styles.nextBtn, btnStyle]} 
-              onPress={fetchWord}
-            >
-              <Text style={styles.btnText}>PLAY AGAIN</Text>
-            </TouchableOpacity>
+            <Button3D label="PLAY AGAIN" onPress={startNewGame} variant="primary" style={{width: '100%'}} />
           </View>
         </View>
       </Modal>
@@ -264,10 +265,8 @@ export default function HangmanGame() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { flexGrow: 1, padding: 20 },
-  
-  gameWrapper: { width: '100%', maxWidth: 500, alignSelf: 'center', alignItems: 'center' },
+  webContainer: { width: '100%', maxWidth: 500, alignSelf: 'center', alignItems: 'center' },
 
   drawCard: {
     width: '100%', height: 220, borderRadius: 20, borderWidth: 3, borderBottomWidth: 6,
@@ -296,13 +295,11 @@ const styles = StyleSheet.create({
   key: { width: 34, height: 42, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderBottomWidth: 3 },
   keyText: { fontSize: 16, fontWeight: 'bold' },
 
+  footer: { marginTop: 20, width: '100%' },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  modalCard: { width: '85%', maxWidth: 400, borderRadius: 30, padding: 30, alignItems: 'center', borderWidth: 4, borderBottomWidth: 8, elevation: 20 },
   modalTitle: { fontSize: 28, fontWeight: '900', marginBottom: 20, letterSpacing: 1, textAlign: 'center' },
   modalContent: { marginBottom: 30, alignItems: 'center' },
   label: { fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
   revealWord: { fontSize: 28, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
-  
-  nextBtn: { paddingVertical: 15, paddingHorizontal: 40, borderRadius: 50, borderBottomWidth: 6, width: '100%', alignItems: 'center' },
-  btnText: { color: '#FFF', fontWeight: '900', fontSize: 18, letterSpacing: 1 }
 });

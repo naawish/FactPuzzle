@@ -26,7 +26,8 @@ export default function TabLayout() {
       <Tabs.Screen 
         name="home" 
         options={{ 
-          title: 'Game Hub',
+          title: 'FactPuzzle', // <--- APP TITLE IN HEADER
+          tabBarLabel: 'Hub',  // Short label for bottom bar
           tabBarIcon: ({ color, size }) => <Ionicons name="game-controller" size={size} color={color} />
         }} 
       />
@@ -47,7 +48,7 @@ export default function TabLayout() {
       <Tabs.Screen 
         name="settings" 
         options={{ 
-          href: null, // Hides this from the tab bar but keeps it in the navigator
+          href: null, 
           title: 'Settings' 
         }} 
       />

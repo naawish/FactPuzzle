@@ -1,102 +1,84 @@
 # FactPuzzle (React Native + Expo)
 
-> A gamified knowledge collection platform that combines logic puzzles with educational content, featuring a custom 3D UI, local SQL persistence, and cross-platform compatibility.
+> A gamified knowledge collection platform that combines logic puzzles with educational content, featuring a custom 3D UI, simulated local persistence, and cross-platform compatibility.
 
 ## Overview
-This project satisfies the requirements of the Mobile Application Development practical assessment by providing a fully functional React Native + Expo game application. The application includes secure authentication, adaptive layouts, light and dark themes, persistent data storage through a local Node.js/SQLite backend, and interactive game modules. All navigation, state management, and data persistence specifications outlined in the assessment brief have been implemented and are detailed below.
+This project satisfies the requirements of the Mobile Application Development practical assessment by providing a fully functional React Native + Expo game application.
+
+The application includes secure authentication simulation, adaptive layouts, light and dark themes, and interactive game modules. To ensure ease of testing and portability, the application uses a **Simulated Database Architecture** (powered by AsyncStorage), allowing the app to persist user data, profiles, and game history locally on the device without requiring an external database server connection.
 
 ## Table of Contents
 - [FactPuzzle (React Native + Expo)](#factpuzzle-react-native--expo)
   - [Overview](#overview)
-  - [Table of Contents](#table-of-contents)
   - [Assessment Alignment](#assessment-alignment)
   - [Feature Highlights](#feature-highlights)
   - [Architecture Notes](#architecture-notes)
-    - [Navigation](#navigation)
-    - [State Management](#state-management)
-    - [Persistence Strategy](#persistence-strategy)
-    - [Theming \& UI System](#theming--ui-system)
-    - [Data Flow Snapshot](#data-flow-snapshot)
   - [Project Structure](#project-structure)
   - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
-    - [Run in Development](#run-in-development)
-    - [Quality Gates](#quality-gates)
-    - [Troubleshooting](#troubleshooting)
+    - [Running the App](#running-the-app)
   - [Screenshots](#screenshots)
-  - [Login \& Onboarding](#login--onboarding)
-  - [Game Hub (Light \& Dark)](#game-hub-light--dark)
-  - [Profile \& Timeline](#profile--timeline)
-  - [Leaderboard \& Stats](#leaderboard--stats)
-  - [Settings \& Sharing](#settings--sharing)
   - [Testing \& Debugging](#testing--debugging)
-  - [Known Issues \& Future Improvements](#known-issues--future-improvements)
+  - [Known Issues](#known-issues)
   - [Academic Project](#academic-project)
   - [License](#license)
 
 ## Assessment Alignment
 | Requirement | Evidence in App |
 | --- | --- |
-| UI / UX & Accessibility | Custom "3D Game" aesthetic with tactile buttons and cards; dynamic theming via `ThemeContext` supporting System/Light/Dark modes; responsive layouts for Mobile and Web. |
-| Navigation Flow | Nested Stack + Bottom Tab navigators in `App.js` covering Authentication, Game Hub, Profile, Leaderboard, and Settings. |
-| State Management | Global context (`AuthContext`) manages user sessions and API calls; `ThemeContext` controls visual styling; local state handles game logic (Word Finder grid, Hangman drawing). |
-| Persistence | Dual-layer persistence: `AsyncStorage` for session management and a local **Node.js + SQLite** server for permanent data storage (User profiles, Fact timelines, Feedback). |
-| Core Functionality | Four distinct games (Word Finder, Hangman, Trivia, Tic-Tac-Toe); Profile timeline generation; Social image sharing (`react-native-view-shot`). |
-| Code Quality & Documentation | Modular folder structure separating `screens/`, `games/`, and `context/`; clean API integration; automated IP detection for local server connectivity. |
+| **UI / UX & Accessibility** | Custom "3D Game" aesthetic with tactile buttons; dynamic theming via `ThemeContext` supporting System/Light/Dark modes; responsive layouts for Mobile and Web; Accessibility props on buttons. |
+| **Navigation Flow** | Modern **Expo Router** (file-based routing) in the `app/` directory, handling Auth stacks, Tab navigation, and Modal game screens. |
+| **State Management** | Global context (`AuthContext`) manages user sessions, game logic, and data simulation; `ThemeContext` controls visual styling. |
+| **Persistence** | **Simulated Multi-User DB**: Uses `AsyncStorage` to mock a relational database, allowing multiple users to sign up/login and maintain separate game histories and profiles locally. |
+| **Core Functionality** | Five distinct games (Word Finder, Hangman, Trivia, Tic-Tac-Toe, Flags); Profile timeline generation; Social image sharing. |
+| **Code Quality** | Written in **TypeScript**; modular folder structure; clean API integration; robust error handling and offline fallbacks. |
 
 ## Feature Highlights
-- **Game Arcade Hub** – A central dashboard accessing four distinct logic games with difficulty settings and locked/unlocked states.
-- **Word Finder Engine** – A complex algorithm that generates grids based on difficulty, supports multi-directional word placement, and integrates a Dictionary API for hints.
-- **Visual Hangman** – A classic word guessing game featuring a custom-drawn stick figure that reacts to player mistakes.
-- **Unbeatable Tic-Tac-Toe** – Features a CPU opponent powered by the Minimax algorithm (Hard Mode) and a 2-Player Pass & Play mode.
-- **Fact Timeline** – Solved puzzles unlock facts which are saved to a personal timeline, grouped by date (Today, Yesterday, Previous).
+- **Game Arcade Hub** – A central dashboard accessing five logic games with difficulty settings.
+- **Word Finder Engine** – Generates grids based on difficulty with multi-directional placement.
+- **Visual Hangman** – A classic word guessing game with a custom-drawn stick figure and offline fallback.
+- **Unbeatable Tic-Tac-Toe** – Features a CPU opponent powered by the **Minimax Algorithm** (Hard Mode).
+- **Flag Guesser** – A visual quiz game integrated with the RestCountries API.
+- **Fact Timeline** – Solved puzzles unlock facts which are saved to a personal timeline, grouped by date.
 - **Social Sharing** – Users can generate branded image cards of their discovered facts to share on social media.
-- **Local SQLite Backend** – A custom REST API server that handles multi-user data storage securely.
 
 ## Architecture Notes
-### Navigation
-- A "Switch-like" logic in `App.js` determines whether to show the Auth Stack (Login/Signup) or the App Stack (Tabs) based on the user's session.
-- Games open in modal-style stack screens to preserve the "Arcade" feel.
+### Navigation (Expo Router)
+The app uses the modern `expo-router` library.
+- `app/(auth)`: Handles Login and Signup screens.
+- `app/(tabs)`: Handles the main tab bar (Hub, Leaderboard, Profile).
+- `app/game`: Handles specific game screens (WordFinder, Hangman, etc.) presented as cards.
 
-### State Management
-- `AuthContext`: Centralizes all API calls (Axios) and manages the `user` object and `isOffline` state.
-- `ThemeContext`: Provides the color palette (Orange/Violet) to all components, enabling instant theme switching.
+### Persistence Strategy (Simulated Backend)
+To ensure the app is easy to mark and test without network configuration:
+- The `AuthContext` simulates a backend server.
+- User data (credentials, solved puzzles, settings) is stored in JSON format inside the device's `AsyncStorage`.
+- This allows for a full "Sign Up -> Login -> Play -> Logout -> Login as different user" flow to function 100% offline.
 
-### Persistence Strategy
-- **Frontend:** Uses `AsyncStorage` to cache the user profile so the app remains logged in between restarts.
-- **Backend:** A Node.js Express server running `sqlite3`. Data is stored in `factpuzzle.sqlite`, allowing for relational data management (Users <-> Solved Facts).
+#### Data Flow
+`Game Logic` -> `AuthContext (saveSolvedPuzzle)` -> `AsyncStorage (Mock DB)` -> `Profile Screen Update`
 
-### Theming & UI System
-- A custom design system replaces standard native elements with "3D" styles (thick borders, deep shadows, rounded corners) to gamify the experience.
-- Web support is handled via `.web.js` extensions, ensuring the layout adapts to desktop monitors (max-width constraints).
-
-### Data Flow Snapshot
-Game Logic -> AuthContext (saveSolvedPuzzle) -> Axios POST -> Node.js Server -> SQLite Database -> Profile Screen Update
 ## Project Structure
+```text
 .
-├── App.js # Main Navigation Entry
-├── assets/ # Images and Icons
-├── fact-puzzle-server/ # Backend Node.js Server
-│ ├── database.js # SQLite Connection
-│ ├── server.js # API Endpoints
-│ └── factpuzzle.sqlite # Database File
+├── app/                    # Expo Router Pages
+│   ├── (auth)/             # Login / Signup
+│   ├── (tabs)/             # Home / Community / Profile
+│   ├── game/               # Individual Game Screens
+│   └── _layout.tsx         # Root Navigation & Providers
 ├── src/
-│ ├── config.js # Auto-IP Detection
-│ ├── context/
-│ │ ├── AuthContext.js
-│ │ └── ThemeContext.js
-│ ├── games/
-│ │ ├── HangmanGame.js
-│ │ ├── TicTacToeGame.js
-│ │ ├── TriviaGame.js
-│ │ └── WordFinderGame.js
-│ └── screens/
-│ ├── HomeScreen.js # Game Hub
-│ ├── ProfileScreen.js
-│ ├── LoginScreen.js
-│ └── ...
-├── screenshots/ # Images for README
+│   ├── components/         # Reusable UI (Button3D)
+│   ├── context/            # Global State (Auth, Theme)
+│   ├── games/              # Game Logic Engines
+│   │   ├── HangmanGame.tsx
+│   │   ├── TicTacToeGame.tsx
+│   │   ├── TriviaGame.tsx
+│   │   ├── WordFinderGame.tsx
+│   │   └── FlagGame.tsx
+│   └── theme/              # Design System Tokens
+├── assets/                 # Images and Icons
+├── screenshots/            # Documentation Images
 ├── package.json
 └── README.md
 
@@ -106,55 +88,27 @@ Game Logic -> AuthContext (saveSolvedPuzzle) -> Axios POST -> Node.js Server -> 
 - **Expo Go** app installed on your mobile device.
 - Your computer and phone must be on the **same Wi-Fi network**.
 
-
-
 ### Installation
-1.  **Install App Dependencies:**
-Open your terminal/command prompt:
-- git clone https://github.com/naawish/FactPuzzle.git
-- cd FactPuzzle
-
+1.  **Clone and Install:**
     ```bash
-    npm install
-    npx expo install react react-dom react-native react-native-web @expo/metro-runtime @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs react-native-screens react-native-safe-area-context
-    npx expo install @react-native-async-storage/async-storage axios expo-constants
-    npx expo install react-native-svg @expo/vector-icons expo-sharing react-native-view-shot
-    npm install concurrently
-    ```
-
-2.  **Install Server Dependencies:**
-    ```bash
-    cd fact-puzzle-server
-    npm install express cors body-parser sqlite3
+    git clone https://github.com/naawish/FactPuzzle.git
+    cd FactPuzzle
     npm install
     ```
+##Running the App
+- Since the database is simulated locally, you do not need to run a separate backend server.
 
-### Run in Development
-This project requires the backend server to be running. A concurrent script has been set up to launch both the App and the Server with one command:
+##Start Expo:
     ```bash
-    npm run dev
+    npx expo start -c
     ```
+(The -c flag clears the cache to ensure assets load correctly).
 
-This command starts the Node.js server on Port 3000 and the Expo Bundler.
+Test on Device:
+Scan the QR code with Expo Go (Android) or the Camera app (iOS).
+Test on Web:
+Press w in the terminal to launch the responsive web version.
 
-### Alternative Development
-The Manual Method (Recommended for QR Code visibility)
-If the QR code isn't showing up, open two separate terminal windows:
-
-Terminal 1 (Backend Server):
-
-    ```bash
-        cd FactPuzzle/fact-puzzle-server
-        node server.js
-    ```
-You should see: "SQLite Server running on port 3000"
-
-Terminal 2 (Mobile App):
-
-    ```bash
-       cd FactPuzzle
-       npx expo start -c
-    ```
 
 ### Quality Gates
 - Offline Detection: The app includes an Axios interceptor that detects network failures and displays an "Offline Mode" badge if the server cannot be reached.
@@ -192,14 +146,14 @@ Settings Menu	Social Share Card
 
 
 ### Testing & Debugging
-- DManual Testing: Each game has been tested for win/loss conditions, difficulty adjustments, and API failure fallbacks (e.g., Hangman uses a local word list if the API fails).
-- DBackend Testing: API endpoints (/login, /save-puzzle) were verified using Postman and console logging within the custom server.js middleware.
-Web Compatibility: Layouts utilize maxWidth constraints and platform-specific files (.web.js) to ensure the UI does not stretch on desktop browsers.
+- Automated Testing: Unit tests for game logic (Tic-Tac-Toe algorithms) are included.
+Run tests via: ``` npm test```
+- Manual Testing: Each game includes fallback mechanisms (e.g., Hangman loads a local word list if the API fails/offline).
+- Web Compatibility: Layouts utilize maxWidth constraints and platform-specific files (.web.tsx) to ensure the UI does not   stretch on desktop browsers.
 
 ### Known Issues & Future Improvements
-- Web View Limitations – The "Share Image" feature is disabled on the Web version due to browser security limitations regarding react-native-view-shot.
-- Keyboard Handling – On smaller devices, the keyboard may occasionally cover input fields in the Trivia game, though KeyboardAvoidingView is implemented to minimize this.
-- Cloud Migration – Moving from SQLite to Firebase Firestore would allow users to log in from any network (e.g., 4G/5G) without needing to be on the same local Wi-Fi.
+- Web View Limitations: The "Share Image" feature is disabled on the Web version due to browser security limitations regarding react-native-view-shot.
+- Keyboard Handling: On smaller devices, the keyboard may occasionally cover input fields in the Trivia game, though KeyboardAvoidingView is implemented to minimize this.
 
 ### Academic Project
 This is an educational project developed as part of:
@@ -207,4 +161,4 @@ Module: UFCF7H-15-3 Mobile Applications
 Institution: University of West of England in association with Villa College
 
 ### License
-MIT License
+- MIT License

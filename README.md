@@ -81,8 +81,8 @@ To ensure the app is easy to mark and test without network configuration:
 ├── screenshots/            # Documentation Images
 ├── package.json
 └── README.md
+```
 
-## Getting Started
 ### Prerequisites
 - Node.js installed on your machine.
 - **Expo Go** app installed on your mobile device.
@@ -90,7 +90,7 @@ To ensure the app is easy to mark and test without network configuration:
 
 ### Installation
 1.  **Clone and Install:**
-    ```bash
+    ```
     git clone https://github.com/naawish/FactPuzzle.git
     cd FactPuzzle
     npm install
@@ -99,7 +99,7 @@ To ensure the app is easy to mark and test without network configuration:
 - Since the database is simulated locally, you do not need to run a separate backend server.
 
 ##Start Expo:
-    ```bash
+    ```
     npx expo start -c
     ```
 (The -c flag clears the cache to ensure assets load correctly).

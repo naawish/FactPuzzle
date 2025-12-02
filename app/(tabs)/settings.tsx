@@ -14,12 +14,16 @@ export default function SettingsScreen() {
 
   // Modals State
   const [activeModal, setActiveModal] = useState<'none' | 'profile' | 'password' | 'feedback' | 'logout' | 'success'>('none');
+  
+  // Content State
   const [feedbackText, setFeedbackText] = useState('');
+  const [successInfo, setSuccessInfo] = useState({ title: 'SUCCESS!', message: 'Operation completed.' }); // <--- NEW
   
   // Forms
   const [editName, setEditName] = useState(user?.username || '');
   const [editEmail, setEditEmail] = useState(user?.email || '');
   const [passData, setPassData] = useState({ current: '', new: '' });
+  const [notifications, setNotifications] = useState(true);
 
   const closeModal = () => setActiveModal('none');
 
@@ -33,8 +37,10 @@ export default function SettingsScreen() {
   const handleUpdatePassword = async () => {
     const success = await changePassword(passData.current, passData.new);
     if (success) {
-      closeModal();
-      alert("Password Updated!");
+      // UPDATE: Use the 3D Success Modal instead of Alert
+      setPassData({ current: '', new: '' }); // Clear inputs
+      setSuccessInfo({ title: 'SECURED!', message: 'Your password has been updated successfully.' });
+      setActiveModal('success');
     } else {
       alert("Incorrect current password");
     }
@@ -42,9 +48,22 @@ export default function SettingsScreen() {
 
   const handleFeedback = async () => {
     if (!feedbackText) return;
-    await submitFeedback(feedbackText);
-    setFeedbackText('');
-    setActiveModal('success');
+    const result = await submitFeedback(feedbackText);
+    if (result) {
+      setFeedbackText('');
+      // Set dynamic text for feedback success
+      setSuccessInfo({ title: 'RECEIVED!', message: 'Thank you for your feedback. We read every message.' });
+      setActiveModal('success');
+    } else {
+      alert("Failed to send feedback");
+    }
+  };
+
+  const handleLogout = async () => {
+    closeModal();
+    setTimeout(() => {
+      logout();
+    }, 100); 
   };
 
   // Styles Helpers
@@ -75,10 +94,14 @@ export default function SettingsScreen() {
         <View style={cardStyle}>
           <View style={styles.row}>
             <Text style={[TEXT.header, { color: themeColors.primary, fontSize: 14 }]}>PLAYER ACCOUNT</Text>
-            <Button3D label="EDIT" size="sm" variant="neutral" onPress={() => setActiveModal('profile')} style={{ minWidth: 70, paddingVertical: 4 }} />
+            <Button3D label="EDIT" size="sm" variant="neutral" onPress={() => {
+              setEditName(user?.username || '');
+              setEditEmail(user?.email || '');
+              setActiveModal('profile');
+            }} style={{ minWidth: 70, paddingVertical: 4 }} />
           </View>
-          <InfoRow label="USERNAME" value={user?.username} colors={themeColors} />
-          <InfoRow label="EMAIL" value={user?.email} colors={themeColors} />
+          <InfoRow label="USERNAME" value={user?.username || 'Loading...'} colors={themeColors} />
+          <InfoRow label="EMAIL" value={user?.email || 'Loading...'} colors={themeColors} />
         </View>
 
         {/* SECURITY */}
@@ -93,6 +116,12 @@ export default function SettingsScreen() {
           <Text style={[TEXT.header, { color: themeColors.primary, fontSize: 14, marginBottom: 10 }]}>VISUALS</Text>
           <SwitchRow label="AUTO THEME" value={useSystemTheme} onValueChange={toggleSystemTheme} colors={themeColors} />
           <SwitchRow label="DARK MODE" value={isDarkMode} onValueChange={toggleDarkMode} disabled={useSystemTheme} colors={themeColors} />
+        </View>
+
+        {/* ALERTS */}
+        <View style={cardStyle}>
+          <Text style={[TEXT.header, { color: themeColors.primary, fontSize: 14, marginBottom: 10 }]}>ALERTS</Text>
+          <SwitchRow label="PUSH NOTIFICATIONS" value={notifications} onValueChange={setNotifications} colors={themeColors} />
         </View>
 
         {/* SUPPORT */}
@@ -135,11 +164,18 @@ export default function SettingsScreen() {
         <Text style={{ color: themeColors.text, textAlign: 'center', marginBottom: 20 }}>Are you sure you want to sign out?</Text>
         <View style={styles.modalBtns}>
           <Button3D label="STAY" variant="neutral" onPress={closeModal} style={{ flex: 1 }} />
-          <Button3D label="LEAVE" variant="danger" onPress={() => { closeModal(); logout(); }} style={{ flex: 1 }} />
+          <Button3D label="LEAVE" variant="danger" onPress={handleLogout} style={{ flex: 1 }} />
         </View>
       </CustomModal>
 
-      {/* 4. FEEDBACK & SUCCESS */}
+      {/* 4. FEEDBACK & PASSWORD SUCCESS (REUSED) */}
+      <CustomModal visible={activeModal === 'success'} colors={themeColors}>
+        <Text style={[TEXT.header, { color: themeColors.success, textAlign: 'center', marginBottom: 10 }]}>{successInfo.title}</Text>
+        <Text style={{ color: themeColors.text, textAlign: 'center', marginBottom: 20 }}>{successInfo.message}</Text>
+        <Button3D label="CLOSE" variant="success" onPress={closeModal} />
+      </CustomModal>
+
+      {/* 5. FEEDBACK INPUT */}
       <CustomModal visible={activeModal === 'feedback'} colors={themeColors}>
         <Text style={[TEXT.header, { color: themeColors.primary, textAlign: 'center', marginBottom: 20 }]}>FEEDBACK</Text>
         <TextInput 
@@ -152,18 +188,12 @@ export default function SettingsScreen() {
         </View>
       </CustomModal>
 
-      <CustomModal visible={activeModal === 'success'} colors={themeColors}>
-        <Text style={[TEXT.header, { color: themeColors.success, textAlign: 'center', marginBottom: 10 }]}>RECEIVED!</Text>
-        <Text style={{ color: themeColors.text, textAlign: 'center', marginBottom: 20 }}>Thank you for your feedback.</Text>
-        <Button3D label="CLOSE" variant="success" onPress={closeModal} />
-      </CustomModal>
-
     </ImageBackground>
   );
 }
 
 // --- SUB COMPONENTS ---
-const InfoRow = ({ label, value, colors }) => (
+const InfoRow = ({ label, value, colors }: { label: string, value: string, colors: any }) => (
   <View style={{ marginTop: 10 }}>
     <Text style={[TEXT.label, { color: colors.text }]}>{label}</Text>
     <Text style={{ color: colors.subText, fontSize: 16 }}>{value}</Text>
@@ -171,14 +201,14 @@ const InfoRow = ({ label, value, colors }) => (
   </View>
 );
 
-const SwitchRow = ({ label, value, onValueChange, disabled, colors }) => (
+const SwitchRow = ({ label, value, onValueChange, disabled, colors }: any) => (
   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 10, opacity: disabled ? 0.5 : 1 }}>
     <Text style={[TEXT.label, { color: colors.text, marginBottom: 0 }]}>{label}</Text>
     <Switch value={value} onValueChange={onValueChange} trackColor={{ false: '#767577', true: colors.primary }} />
   </View>
 );
 
-const CustomModal = ({ visible, children, colors }) => (
+const CustomModal = ({ visible, children, colors }: any) => (
   <Modal visible={visible} transparent animationType="fade">
     <View style={styles.modalOverlay}>
       <View style={[LAYOUT.card3D, { backgroundColor: colors.card, borderColor: colors.border, borderBottomColor: colors.shadow, width: '85%', maxWidth: 400 }]}>

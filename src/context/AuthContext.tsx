@@ -1,13 +1,12 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// --- TYPES (If using TypeScript) ---
+// TYPES
 interface UserProfile {
   id: string;
   username: string;
   email: string;
-  solved: any[]; // Array of puzzles
-  // Note: 'password' is intentionally missing from the UI type
+  solved: any[];
 }
 
 interface AuthContextType {
@@ -23,44 +22,34 @@ interface AuthContextType {
 }
 
 export const AuthContext = createContext<AuthContextType>({} as AuthContextType);
-
-// Hook for easy access
 export const useAuth = () => useContext(AuthContext);
 
-// --- STORAGE KEYS ---
-const USERS_DB_KEY = 'FACTPUZZLE_DATABASE_USERS'; // Acts as our "Server DB"
-const SESSION_TOKEN_KEY = 'FACTPUZZLE_SESSION_TOKEN'; // Acts as our "Cookie/JWT"
+// STORAGE KEYS
+const USERS_DB_KEY = 'FACTPUZZLE_DATABASE_USERS';
+const SESSION_TOKEN_KEY = 'FACTPUZZLE_SESSION_TOKEN';
 const FEEDBACK_DB_KEY = 'FACTPUZZLE_DATABASE_FEEDBACK';
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- 1. INITIAL LOAD ---
   useEffect(() => {
     loadSession();
   }, []);
 
   const loadSession = async () => {
     try {
-      // Check for a session token
       const token = await AsyncStorage.getItem(SESSION_TOKEN_KEY);
-      
       if (token) {
-        // Token format: "bearer-USER_ID"
         const userId = token.split('bearer-')[1];
-        
-        // Fetch from "DB"
         const allUsersRaw = await AsyncStorage.getItem(USERS_DB_KEY);
         const allUsers = allUsersRaw ? JSON.parse(allUsersRaw) : [];
         const foundUser = allUsers.find((u: any) => u.id === userId);
         
         if (foundUser) {
-          // SECURITY: Strip password before setting state
           const { password, ...safeUser } = foundUser;
           setUser(safeUser);
         } else {
-          // Invalid token (User deleted?), clear it
           await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
         }
       }
@@ -71,24 +60,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // --- HELPER: DB TRANSACTION ---
-  // Safely updates a user in the DB without exposing password to the UI
   const updateUserInDb = async (userId: string, updateFn: (user: any) => any) => {
     try {
       const allUsersRaw = await AsyncStorage.getItem(USERS_DB_KEY);
       let allUsers = allUsersRaw ? JSON.parse(allUsersRaw) : [];
-      
       const index = allUsers.findIndex((u: any) => u.id === userId);
+      
       if (index === -1) return null;
 
-      // Apply update
       const updatedFullUser = updateFn(allUsers[index]);
       allUsers[index] = updatedFullUser;
 
-      // Save back to DB
       await AsyncStorage.setItem(USERS_DB_KEY, JSON.stringify(allUsers));
 
-      // Update UI State (Sanitized)
+      // Update UI State immediately
       const { password, ...safeUser } = updatedFullUser;
       setUser(safeUser);
       
@@ -99,41 +84,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // --- 2. AUTH ACTIONS ---
+  // --- ACTIONS ---
 
   const login = async (email: string, pass: string) => {
     try {
       const allUsersRaw = await AsyncStorage.getItem(USERS_DB_KEY);
       const allUsers = allUsersRaw ? JSON.parse(allUsersRaw) : [];
-
-      // Find user matching credentials
-      // In a real app, this would be a server request returning a JWT
       const foundUser = allUsers.find((u: any) => 
         u.email.toLowerCase() === email.trim().toLowerCase() && 
         u.password === pass
       );
 
       if (foundUser) {
-        // Generate a simple mock token
         const token = `bearer-${foundUser.id}`;
         await AsyncStorage.setItem(SESSION_TOKEN_KEY, token);
-        
-        // SECURITY: Sanitize state
         const { password, ...safeUser } = foundUser;
         setUser(safeUser);
         return true;
       }
       return false;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) { return false; }
   };
 
   const signup = async (username: string, email: string, pass: string) => {
     try {
       const allUsersRaw = await AsyncStorage.getItem(USERS_DB_KEY);
       const allUsers = allUsersRaw ? JSON.parse(allUsersRaw) : [];
-
       if (allUsers.find((u: any) => u.email.toLowerCase() === email.trim().toLowerCase())) {
         alert("Email already in use");
         return false;
@@ -143,31 +119,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         id: Date.now().toString(),
         username: username.trim(),
         email: email.trim(),
-        password: pass, // Stored in DB, but never put in Context State
+        password: pass,
         solved: []
       };
 
       allUsers.push(newUser);
       await AsyncStorage.setItem(USERS_DB_KEY, JSON.stringify(allUsers));
       
-      // Auto Login
       const token = `bearer-${newUser.id}`;
       await AsyncStorage.setItem(SESSION_TOKEN_KEY, token);
-      
       const { password, ...safeUser } = newUser;
       setUser(safeUser);
       return true;
-    } catch (e) {
-      return false;
-    }
+    } catch (e) { return false; }
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
-    setUser(null);
+    try {
+      await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
+      setUser(null); // This triggers the redirect in app/index.tsx
+    } catch (e) {
+      console.error(e);
+    }
   };
-
-  // --- 3. DATA ACTIONS ---
 
   const updateProfile = async (newUsername: string, newEmail: string) => {
     if (!user) return;
@@ -180,30 +154,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const changePassword = async (currentPass: string, newPass: string) => {
     if (!user) return false;
-
-    // We must fetch from DB to check current password (since it's not in state)
     const allUsersRaw = await AsyncStorage.getItem(USERS_DB_KEY);
     const allUsers = allUsersRaw ? JSON.parse(allUsersRaw) : [];
     const dbUser = allUsers.find((u: any) => u.id === user.id);
 
-    if (!dbUser || dbUser.password !== currentPass) {
-      return false;
-    }
+    if (!dbUser || dbUser.password !== currentPass) return false;
 
-    await updateUserInDb(user.id, (u) => ({
-      ...u,
-      password: newPass
-    }));
+    await updateUserInDb(user.id, (u) => ({ ...u, password: newPass }));
     return true;
   };
 
   const saveSolvedPuzzle = async (fact: any) => {
     if (!user) return;
-
-    // Normalize fact structure
     const factText = typeof fact === 'string' ? fact : fact.text;
-
-    // We check duplicates against State (fast), then update DB
     const alreadyExists = user.solved.some(item => {
       const existingText = typeof item === 'string' ? item : item.text;
       return existingText === factText;
@@ -211,11 +174,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (alreadyExists) return;
 
-    const newEntry = {
-      text: factText,
-      date: new Date().toISOString()
-    };
-
+    const newEntry = { text: factText, date: new Date().toISOString() };
     await updateUserInDb(user.id, (dbUser) => ({
       ...dbUser,
       solved: [newEntry, ...dbUser.solved]
@@ -237,24 +196,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       await AsyncStorage.setItem(FEEDBACK_DB_KEY, JSON.stringify(feedbacks));
-      console.log("Feedback Securely Saved:", text); 
+      
+      // LOGGING HERE SO YOU CAN SEE IT IN TERMINAL
+      console.log("----------------------------------------");
+      console.log("📩 FEEDBACK RECEIVED from " + user.username);
+      console.log("📝 MESSAGE: " + text);
+      console.log("----------------------------------------");
+      
       return true;
     } catch (e) {
+      console.error(e);
       return false;
     }
   };
 
   return (
     <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      login, 
-      signup, 
-      logout, 
-      updateProfile, 
-      changePassword, 
-      saveSolvedPuzzle,
-      submitFeedback 
+      user, loading, login, signup, logout, 
+      updateProfile, changePassword, saveSolvedPuzzle, submitFeedback 
     }}>
       {children}
     </AuthContext.Provider>

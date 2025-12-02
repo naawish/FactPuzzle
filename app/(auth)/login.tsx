@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   View, Text, TextInput, StyleSheet, ImageBackground, Image, 
-  KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard 
+  KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard, Modal 
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
@@ -13,6 +13,10 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
+  // NEW: State for Error Modal
+  const [errorVisible, setErrorVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   const { login } = useAuth();
   const { isDark } = useTheme();
   const router = useRouter();
@@ -20,11 +24,21 @@ export default function LoginScreen() {
   const themeColors = isDark ? COLORS.dark : COLORS.light;
 
   const handleLogin = async () => {
+    // 1. Validation Check
+    if (!email || !password) {
+      setErrorMessage("Please enter both email and password.");
+      setErrorVisible(true);
+      return;
+    }
+
     const success = await login(email, password);
+    
     if (success) {
       router.replace('/(tabs)/home');
     } else {
-      alert('Invalid credentials');
+      // 2. Show Custom 3D Modal on failure
+      setErrorMessage("Invalid credentials or user not found.");
+      setErrorVisible(true);
     }
   };
 
@@ -55,7 +69,7 @@ export default function LoginScreen() {
               />
             </View>
 
-            {/* CARD */}
+            {/* LOGIN CARD */}
             <View style={[
               LAYOUT.card3D, 
               { 
@@ -124,6 +138,36 @@ export default function LoginScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </Wrapper>
+
+      {/* --- 3. CUSTOM ERROR MODAL --- */}
+      <Modal visible={errorVisible} transparent={true} animationType="fade" onRequestClose={() => setErrorVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[
+            LAYOUT.card3D, 
+            { 
+              backgroundColor: themeColors.card, 
+              borderColor: themeColors.border, 
+              borderBottomColor: themeColors.shadow,
+              width: '85%', 
+              maxWidth: 400,
+              alignItems: 'center'
+            }
+          ]}>
+            <Text style={[TEXT.header, { color: themeColors.danger, marginBottom: 15 }]}>OOPS!</Text>
+            <Text style={{ color: themeColors.text, fontSize: 16, textAlign: 'center', marginBottom: 25, fontWeight: '500' }}>
+              {errorMessage}
+            </Text>
+            
+            <Button3D 
+              label="TRY AGAIN" 
+              variant="danger" 
+              onPress={() => setErrorVisible(false)} 
+              style={{ width: '100%' }}
+            />
+          </View>
+        </View>
+      </Modal>
+
     </ImageBackground>
   );
 }
@@ -150,5 +194,12 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
     flexDirection: 'row',
     justifyContent: 'center',
-  }
+  },
+  // Modal Styles
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.7)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
 });

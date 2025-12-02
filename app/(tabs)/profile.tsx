@@ -36,8 +36,15 @@ export default function ProfileScreen() {
         timestamp = new Date(item.date).getTime();
       }
 
-      // Filter out Game Win messages
-      if (factText.startsWith("Solved Hangman") || factText.startsWith("Beat TicTacToe")) return;
+      // --- FILTER: SHOW ONLY TRIVIA & WORD FINDER ---
+      // We exclude the "Game Win" messages from other games
+      if (
+        factText.startsWith("Solved Hangman") || 
+        factText.startsWith("Beat TicTacToe") ||
+        factText.startsWith("Flag Master")
+      ) {
+        return; // Skip these
+      }
 
       // Date Grouping
       let dateLabel = "Previous Collection";
@@ -102,7 +109,6 @@ export default function ProfileScreen() {
       <View style={styles.container}>
         
         {/* --- HIDDEN SHARE TEMPLATE --- */}
-        {/* Positioned off-screen but rendered so ViewShot can see it */}
         <View style={{ position: 'absolute', left: -3000, top: 0 }}>
           <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1.0 }}>
             <View style={[styles.shareCard, { backgroundColor: themeColors.background, borderColor: themeColors.primary }]}>
@@ -124,7 +130,6 @@ export default function ProfileScreen() {
             </View>
           </ViewShot>
         </View>
-        {/* ----------------------------- */}
 
         {/* Profile Header */}
         <View style={[LAYOUT.card3D, { backgroundColor: themeColors.card, borderColor: themeColors.primary, borderBottomColor: themeColors.shadow }]}>
@@ -132,7 +137,7 @@ export default function ProfileScreen() {
             <View>
               <Text style={[TEXT.label, { color: themeColors.primary }]}>PLAYER PROFILE</Text>
               <Text style={[TEXT.header, { color: themeColors.text }]}>{user?.username}</Text>
-              <Text style={{ color: themeColors.subText }}>Facts: {(user?.solved || []).length}</Text>
+              <Text style={{ color: themeColors.subText }}>Facts: {sections.reduce((acc, sec) => acc + sec.data.length, 0)}</Text>
             </View>
             <Button3D label="⚙️" size="sm" variant="neutral" onPress={() => router.push('/(tabs)/settings')} style={{ minWidth: 60 }} />
           </View>
@@ -166,7 +171,7 @@ export default function ProfileScreen() {
           ListEmptyComponent={
             <View style={{ padding: 40, alignItems: 'center', opacity: 0.5 }}>
               <Text style={{ color: themeColors.text, fontWeight: 'bold' }}>No facts yet.</Text>
-              <Text style={{ color: themeColors.subText }}>Solve puzzles to fill your book!</Text>
+              <Text style={{ color: themeColors.subText }}>Solve WordFinder or Trivia puzzles!</Text>
             </View>
           }
         />

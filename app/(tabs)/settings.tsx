@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  View, Text, StyleSheet, Switch, Modal, ScrollView, ImageBackground, TextInput, Platform 
+  View, Text, StyleSheet, Switch, Modal, ScrollView, ImageBackground, TextInput, Alert, KeyboardAvoidingView, Platform 
 } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -13,12 +13,13 @@ export default function SettingsScreen() {
   const themeColors = isDark ? COLORS.dark : COLORS.light;
 
   // Modals State
-  const [activeModal, setActiveModal] = useState<'none' | 'profile' | 'password' | 'feedback' | 'logout' | 'success'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'profile' | 'password' | 'confirmPassword' | 'feedback' | 'logout' | 'success' | 'error'>('none');
   
   // Content State
   const [feedbackText, setFeedbackText] = useState('');
-  const [successInfo, setSuccessInfo] = useState({ title: 'SUCCESS!', message: 'Operation completed.' }); // <--- NEW
-  
+  const [successInfo, setSuccessInfo] = useState({ title: 'SUCCESS!', message: 'Operation completed.' });
+  const [errorMessage, setErrorMessage] = useState(''); 
+
   // Forms
   const [editName, setEditName] = useState(user?.username || '');
   const [editEmail, setEditEmail] = useState(user?.email || '');
@@ -29,20 +30,39 @@ export default function SettingsScreen() {
 
   // --- ACTIONS ---
   const handleUpdateProfile = async () => {
-    if (!editName || !editEmail) return alert("Fields required");
+    if (!editName || !editEmail) {
+      setErrorMessage("Fields cannot be empty.");
+      setActiveModal('error');
+      return;
+    }
     await updateProfile(editName, editEmail);
     closeModal();
   };
 
-  const handleUpdatePassword = async () => {
+  const handleSavePassword = () => {
+    if (!passData.current || !passData.new) {
+      setErrorMessage("Please fill in both your current and new password.");
+      setActiveModal('error');
+      return;
+    }
+    if (passData.new.length < 6) {
+      setErrorMessage("New password must be at least 6 characters long.");
+      setActiveModal('error');
+      return;
+    }
+    setActiveModal('confirmPassword');
+  };
+
+  const executePasswordChange = async () => {
     const success = await changePassword(passData.current, passData.new);
+    
     if (success) {
-      // UPDATE: Use the 3D Success Modal instead of Alert
-      setPassData({ current: '', new: '' }); // Clear inputs
+      setPassData({ current: '', new: '' }); 
       setSuccessInfo({ title: 'SECURED!', message: 'Your password has been updated successfully.' });
       setActiveModal('success');
     } else {
-      alert("Incorrect current password");
+      setErrorMessage("The current password you entered is incorrect.");
+      setActiveModal('error');
     }
   };
 
@@ -51,11 +71,11 @@ export default function SettingsScreen() {
     const result = await submitFeedback(feedbackText);
     if (result) {
       setFeedbackText('');
-      // Set dynamic text for feedback success
       setSuccessInfo({ title: 'RECEIVED!', message: 'Thank you for your feedback. We read every message.' });
       setActiveModal('success');
     } else {
-      alert("Failed to send feedback");
+      setErrorMessage("Failed to send feedback. Please try again.");
+      setActiveModal('error');
     }
   };
 
@@ -115,7 +135,15 @@ export default function SettingsScreen() {
         <View style={cardStyle}>
           <Text style={[TEXT.header, { color: themeColors.primary, fontSize: 14, marginBottom: 10 }]}>VISUALS</Text>
           <SwitchRow label="AUTO THEME" value={useSystemTheme} onValueChange={toggleSystemTheme} colors={themeColors} />
-          <SwitchRow label="DARK MODE" value={isDarkMode} onValueChange={toggleDarkMode} disabled={useSystemTheme} colors={themeColors} />
+          
+          {/* DARK MODE SWITCH */}
+          <SwitchRow 
+            label="DARK MODE" 
+            value={isDarkMode} 
+            onValueChange={toggleDarkMode} 
+            disabled={useSystemTheme} // If Auto is ON, this is disabled
+            colors={themeColors} 
+          />
         </View>
 
         {/* ALERTS */}
@@ -147,18 +175,30 @@ export default function SettingsScreen() {
         </View>
       </CustomModal>
 
-      {/* 2. PASSWORD */}
+      {/* 2. PASSWORD INPUT */}
       <CustomModal visible={activeModal === 'password'} colors={themeColors}>
         <Text style={[TEXT.header, { color: themeColors.primary, textAlign: 'center', marginBottom: 20 }]}>SECURITY</Text>
         <TextInput value={passData.current} onChangeText={(t) => setPassData({...passData, current: t})} secureTextEntry style={inputStyle} placeholder="Current Password" placeholderTextColor={themeColors.subText} />
         <TextInput value={passData.new} onChangeText={(t) => setPassData({...passData, new: t})} secureTextEntry style={inputStyle} placeholder="New Password" placeholderTextColor={themeColors.subText} />
         <View style={styles.modalBtns}>
           <Button3D label="CANCEL" variant="neutral" onPress={closeModal} style={{ flex: 1 }} />
-          <Button3D label="UPDATE" variant="primary" onPress={handleUpdatePassword} style={{ flex: 1 }} />
+          <Button3D label="UPDATE" variant="primary" onPress={handleSavePassword} style={{ flex: 1 }} />
         </View>
       </CustomModal>
 
-      {/* 3. LOGOUT */}
+      {/* 3. PASSWORD CONFIRMATION */}
+      <CustomModal visible={activeModal === 'confirmPassword'} colors={themeColors}>
+        <Text style={[TEXT.header, { color: themeColors.primary, textAlign: 'center', marginBottom: 10 }]}>CONFIRM CHANGE</Text>
+        <Text style={{ color: themeColors.text, textAlign: 'center', marginBottom: 20, fontSize: 16 }}>
+          Are you sure you want to change your password?
+        </Text>
+        <View style={styles.modalBtns}>
+          <Button3D label="NO" variant="neutral" onPress={() => setActiveModal('password')} style={{ flex: 1 }} />
+          <Button3D label="YES" variant="primary" onPress={executePasswordChange} style={{ flex: 1 }} />
+        </View>
+      </CustomModal>
+
+      {/* 4. LOGOUT */}
       <CustomModal visible={activeModal === 'logout'} colors={themeColors}>
         <Text style={[TEXT.header, { color: themeColors.danger, textAlign: 'center', marginBottom: 10 }]}>EXIT GAME?</Text>
         <Text style={{ color: themeColors.text, textAlign: 'center', marginBottom: 20 }}>Are you sure you want to sign out?</Text>
@@ -168,14 +208,28 @@ export default function SettingsScreen() {
         </View>
       </CustomModal>
 
-      {/* 4. FEEDBACK & PASSWORD SUCCESS (REUSED) */}
+      {/* 5. SUCCESS */}
       <CustomModal visible={activeModal === 'success'} colors={themeColors}>
         <Text style={[TEXT.header, { color: themeColors.success, textAlign: 'center', marginBottom: 10 }]}>{successInfo.title}</Text>
         <Text style={{ color: themeColors.text, textAlign: 'center', marginBottom: 20 }}>{successInfo.message}</Text>
         <Button3D label="CLOSE" variant="success" onPress={closeModal} />
       </CustomModal>
 
-      {/* 5. FEEDBACK INPUT */}
+      {/* 6. ERROR */}
+      <CustomModal visible={activeModal === 'error'} colors={themeColors}>
+        <Text style={[TEXT.header, { color: themeColors.danger, textAlign: 'center', marginBottom: 10 }]}>OOPS!</Text>
+        <Text style={{ color: themeColors.text, textAlign: 'center', marginBottom: 20 }}>{errorMessage}</Text>
+        <Button3D 
+          label="TRY AGAIN" 
+          variant="danger" 
+          onPress={() => {
+            if (errorMessage.includes("password")) setActiveModal('password');
+            else closeModal();
+          }} 
+        />
+      </CustomModal>
+
+      {/* 7. FEEDBACK INPUT */}
       <CustomModal visible={activeModal === 'feedback'} colors={themeColors}>
         <Text style={[TEXT.header, { color: themeColors.primary, textAlign: 'center', marginBottom: 20 }]}>FEEDBACK</Text>
         <TextInput 
@@ -201,10 +255,16 @@ const InfoRow = ({ label, value, colors }: { label: string, value: string, color
   </View>
 );
 
+// FIXED: Added 'disabled={disabled}' to the Switch component
 const SwitchRow = ({ label, value, onValueChange, disabled, colors }: any) => (
   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 10, opacity: disabled ? 0.5 : 1 }}>
     <Text style={[TEXT.label, { color: colors.text, marginBottom: 0 }]}>{label}</Text>
-    <Switch value={value} onValueChange={onValueChange} trackColor={{ false: '#767577', true: colors.primary }} />
+    <Switch 
+      value={value} 
+      onValueChange={onValueChange} 
+      disabled={disabled} // <--- This prevents user interaction
+      trackColor={{ false: '#767577', true: colors.primary }} 
+    />
   </View>
 );
 

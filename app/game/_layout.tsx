@@ -7,7 +7,7 @@ export default function GameLayout() {
   const { theme } = useTheme();
   const router = useRouter();
 
-  // Custom 3D Back Button Component
+  // Custom 3D Back Button
   const CustomBackButton = () => (
     <TouchableOpacity 
       onPress={() => router.back()}
@@ -24,14 +24,17 @@ export default function GameLayout() {
         headerStyle: { backgroundColor: theme.primary },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: '900', letterSpacing: 1 },
-        headerLeft: () => <CustomBackButton />, // <--- Apply Custom Button
-        headerBackVisible: false, // Hide default arrow
+        headerLeft: () => <CustomBackButton />, 
+        headerBackVisible: false,
       }}
     >
       <Stack.Screen name="wordfinder" options={{ title: 'WORD FINDER' }} />
       <Stack.Screen name="hangman" options={{ title: 'HANGMAN' }} />
       <Stack.Screen name="trivia" options={{ title: 'TRIVIA' }} />
       <Stack.Screen name="tictactoe" options={{ title: 'TIC TAC TOE' }} />
+      
+      {/* NEW FLAG GAME TITLE */}
+      <Stack.Screen name="flag" options={{ title: 'FLAG GUESSER' }} />
     </Stack>
   );
 }

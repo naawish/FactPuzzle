@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import { 
-  View, Text, StyleSheet, Switch, Modal, ScrollView, ImageBackground, TextInput, Alert, KeyboardAvoidingView, Platform 
+  View, Text, StyleSheet, Switch, Modal, ScrollView, ImageBackground, TextInput, Alert, KeyboardAvoidingView, Platform, Image, TouchableOpacity 
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
 import { Button3D } from '../../src/components/ui/Button3D';
 import { COLORS, LAYOUT, SPACING, TEXT } from '../../src/theme/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SettingsScreen() {
   const { user, logout, updateProfile, changePassword, submitFeedback } = useAuth();
   const { isDark, useSystemTheme, toggleSystemTheme, isDarkMode, toggleDarkMode } = useTheme();
   const themeColors = isDark ? COLORS.dark : COLORS.light;
 
-  // Modals State
-  const [activeModal, setActiveModal] = useState<'none' | 'profile' | 'password' | 'confirmPassword' | 'feedback' | 'logout' | 'success' | 'error'>('none');
+  // --- MODALS STATE (Updated) ---
+  const [activeModal, setActiveModal] = useState<
+    'none' | 'profile' | 'password' | 'confirmPassword' | 'feedback' | 'logout' | 'success' | 'error' | 'permissionError'
+  >('none');
   
   // Content State
   const [feedbackText, setFeedbackText] = useState('');
@@ -23,10 +27,35 @@ export default function SettingsScreen() {
   // Forms
   const [editName, setEditName] = useState(user?.username || '');
   const [editEmail, setEditEmail] = useState(user?.email || '');
+  const [editAvatar, setEditAvatar] = useState(user?.avatarUri || null);
+  
   const [passData, setPassData] = useState({ current: '', new: '' });
   const [notifications, setNotifications] = useState(true);
 
   const closeModal = () => setActiveModal('none');
+
+  // --- IMAGE PICKER (UPDATED) ---
+  const pickImage = async () => {
+    // Request permission
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (permissionResult.granted === false) {
+      // UPDATED: Use Custom 3D Modal instead of system alert
+      setActiveModal('permissionError');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setEditAvatar(result.assets[0].uri);
+    }
+  };
 
   // --- ACTIONS ---
   const handleUpdateProfile = async () => {
@@ -35,7 +64,7 @@ export default function SettingsScreen() {
       setActiveModal('error');
       return;
     }
-    await updateProfile(editName, editEmail);
+    await updateProfile(editName, editEmail, editAvatar); // Pass avatar
     closeModal();
   };
 
@@ -117,9 +146,22 @@ export default function SettingsScreen() {
             <Button3D label="EDIT" size="sm" variant="neutral" onPress={() => {
               setEditName(user?.username || '');
               setEditEmail(user?.email || '');
+              setEditAvatar(user?.avatarUri || null);
               setActiveModal('profile');
             }} style={{ minWidth: 70, paddingVertical: 4 }} />
           </View>
+
+          {/* AVATAR DISPLAY */}
+          <View style={{ alignItems: 'center', marginBottom: 15 }}>
+            <View style={[styles.avatarContainer, { borderColor: themeColors.primary }]}>
+               {user?.avatarUri ? (
+                 <Image source={{ uri: user.avatarUri }} style={styles.avatarImage} />
+               ) : (
+                 <Ionicons name="person" size={40} color={themeColors.subText} />
+               )}
+            </View>
+          </View>
+
           <InfoRow label="USERNAME" value={user?.username || 'Loading...'} colors={themeColors} />
           <InfoRow label="EMAIL" value={user?.email || 'Loading...'} colors={themeColors} />
         </View>
@@ -135,15 +177,7 @@ export default function SettingsScreen() {
         <View style={cardStyle}>
           <Text style={[TEXT.header, { color: themeColors.primary, fontSize: 14, marginBottom: 10 }]}>VISUALS</Text>
           <SwitchRow label="AUTO THEME" value={useSystemTheme} onValueChange={toggleSystemTheme} colors={themeColors} />
-          
-          {/* DARK MODE SWITCH */}
-          <SwitchRow 
-            label="DARK MODE" 
-            value={isDarkMode} 
-            onValueChange={toggleDarkMode} 
-            disabled={useSystemTheme} // If Auto is ON, this is disabled
-            colors={themeColors} 
-          />
+          <SwitchRow label="DARK MODE" value={isDarkMode} onValueChange={toggleDarkMode} disabled={useSystemTheme} colors={themeColors} />
         </View>
 
         {/* ALERTS */}
@@ -167,6 +201,19 @@ export default function SettingsScreen() {
       {/* 1. EDIT PROFILE */}
       <CustomModal visible={activeModal === 'profile'} colors={themeColors}>
         <Text style={[TEXT.header, { color: themeColors.primary, textAlign: 'center', marginBottom: 20 }]}>EDIT PROFILE</Text>
+        
+        {/* AVATAR PICKER */}
+        <View style={{ alignItems: 'center', marginBottom: 20 }}>
+          <TouchableOpacity onPress={pickImage} style={[styles.avatarContainer, { borderColor: themeColors.primary }]}>
+            {editAvatar ? (
+              <Image source={{ uri: editAvatar }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name="camera" size={30} color={themeColors.subText} />
+            )}
+          </TouchableOpacity>
+          <Text style={{ color: themeColors.primary, fontWeight: 'bold', marginTop: 5, fontSize: 12 }}>TAP TO CHANGE</Text>
+        </View>
+
         <TextInput value={editName} onChangeText={setEditName} style={inputStyle} placeholder="Username" placeholderTextColor={themeColors.subText} />
         <TextInput value={editEmail} onChangeText={setEditEmail} style={inputStyle} placeholder="Email" placeholderTextColor={themeColors.subText} />
         <View style={styles.modalBtns}>
@@ -242,6 +289,15 @@ export default function SettingsScreen() {
         </View>
       </CustomModal>
 
+      {/* 8. PERMISSION ERROR (NEW) */}
+      <CustomModal visible={activeModal === 'permissionError'} colors={themeColors}>
+        <Text style={[TEXT.header, { color: themeColors.danger, textAlign: 'center', marginBottom: 10 }]}>ACCESS DENIED</Text>
+        <Text style={{ color: themeColors.text, textAlign: 'center', marginBottom: 20 }}>
+          We need access to your photos to set a profile picture. Please enable it in your device settings.
+        </Text>
+        <Button3D label="OK" variant="neutral" onPress={closeModal} />
+      </CustomModal>
+
     </ImageBackground>
   );
 }
@@ -255,16 +311,10 @@ const InfoRow = ({ label, value, colors }: { label: string, value: string, color
   </View>
 );
 
-// FIXED: Added 'disabled={disabled}' to the Switch component
 const SwitchRow = ({ label, value, onValueChange, disabled, colors }: any) => (
   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 10, opacity: disabled ? 0.5 : 1 }}>
     <Text style={[TEXT.label, { color: colors.text, marginBottom: 0 }]}>{label}</Text>
-    <Switch 
-      value={value} 
-      onValueChange={onValueChange} 
-      disabled={disabled} // <--- This prevents user interaction
-      trackColor={{ false: '#767577', true: colors.primary }} 
-    />
+    <Switch value={value} onValueChange={onValueChange} disabled={disabled} trackColor={{ false: '#767577', true: colors.primary }} />
   </View>
 );
 
@@ -282,5 +332,11 @@ const styles = StyleSheet.create({
   content: { padding: 20, maxWidth: 600, alignSelf: 'center', width: '100%' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  modalBtns: { flexDirection: 'row', gap: 15, marginTop: 10 }
+  modalBtns: { flexDirection: 'row', gap: 15, marginTop: 10 },
+  avatarContainer: {
+    width: 80, height: 80, borderRadius: 40, borderWidth: 3,
+    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)', overflow: 'hidden'
+  },
+  avatarImage: { width: '100%', height: '100%' }
 });

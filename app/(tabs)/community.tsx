@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, ImageBackground, Platform } from 'react-native';
+// app/(tabs)/community.tsx
+import React, { useContext, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, ImageBackground, Image } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,10 +11,11 @@ export default function LeaderboardScreen() {
   const { isDark } = useTheme();
   const themeColors = isDark ? COLORS.dark : COLORS.light;
 
-  const userScore = user?.solved ? user.solved.length : 0;
+  const solvedList = user?.solved || [];
+  const userScore = solvedList.length;
   const userName = user?.username || "You";
 
-  // --- 1. STATS BREAKDOWN LOGIC ---
+  // --- 1. STATS CALCULATION ---
   const stats = useMemo(() => {
     let counts = {
       wordfinder: 0,
@@ -22,8 +24,6 @@ export default function LeaderboardScreen() {
       tictactoe: 0,
       flags: 0
     };
-
-    const solvedList = user?.solved || [];
 
     solvedList.forEach((item: any) => {
       // Handle both old string format and new object format
@@ -44,9 +44,9 @@ export default function LeaderboardScreen() {
     });
 
     return counts;
-  }, [user?.solved]);
+  }, [solvedList]);
 
-  // Mock Bots for Leaderboard
+  // --- 2. LEADERBOARD DATA ---
   const leaderboardData = useMemo(() => {
     const bots = [
       { id: '1', name: 'PuzzleMaster', score: 42 },
@@ -54,13 +54,22 @@ export default function LeaderboardScreen() {
       { id: '3', name: 'FactFinder', score: 12 },
       { id: '4', name: 'GeoGuesser', score: 8 },
     ];
-    const all = [...bots, { id: 'user', name: `${userName} (You)`, score: userScore, isUser: true }];
+    
+    const currentUser = { 
+      id: 'user', 
+      name: `${userName} (You)`, 
+      score: userScore, 
+      isUser: true,
+      avatarUri: user?.avatarUri // Pass avatar to list
+    };
+
+    const all = [...bots, currentUser];
     return all.sort((a, b) => b.score - a.score);
-  }, [userScore, userName]);
+  }, [userScore, userName, user?.avatarUri]);
 
   const userRank = leaderboardData.findIndex(p => p.isUser) + 1;
 
-  // Render List Item
+  // --- 3. RENDER ROW ---
   const renderItem = ({ item, index }: { item: any, index: number }) => (
     <View style={[
       styles.row, 
@@ -70,12 +79,31 @@ export default function LeaderboardScreen() {
         borderBottomColor: themeColors.shadow
       }
     ]}>
-      <View style={[styles.rankBadge, { backgroundColor: themeColors.border }]}>
-        <Text style={styles.rankText}>{index + 1}</Text>
+      
+      <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
+        {/* Rank Badge */}
+        <View style={[styles.rankBadge, { backgroundColor: themeColors.border, marginRight: 10 }]}>
+          <Text style={styles.rankText}>{index + 1}</Text>
+        </View>
+
+        {/* AVATAR OR ICON */}
+        {item.isUser && item.avatarUri ? (
+           <Image 
+             source={{ uri: item.avatarUri }} 
+             style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: themeColors.primary, marginRight: 10 }} 
+           />
+        ) : (
+           // Default Icon for Bots or User without photo
+           <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+              <Ionicons name="person" size={20} color={themeColors.subText} />
+           </View>
+        )}
+
+        <Text style={[TEXT.body, { color: item.isUser ? themeColors.primary : themeColors.text, fontWeight: 'bold' }]} numberOfLines={1}>
+          {item.name}
+        </Text>
       </View>
-      <Text style={[TEXT.body, { flex: 1, marginLeft: SPACING.md, color: item.isUser ? themeColors.primary : themeColors.text, fontWeight: 'bold' }]}>
-        {item.name}
-      </Text>
+      
       <Text style={[TEXT.header, { fontSize: 18, color: themeColors.primary }]}>{item.score}</Text>
     </View>
   );
@@ -92,7 +120,7 @@ export default function LeaderboardScreen() {
           LEADERBOARD
         </Text>
 
-        {/* --- 2. STATS BREAKDOWN CARD --- */}
+        {/* --- STATS BREAKDOWN CARD --- */}
         <View style={[LAYOUT.card3D, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderBottomColor: themeColors.shadow, marginBottom: SPACING.lg }]}>
           <Text style={[TEXT.label, { textAlign: 'center', color: themeColors.subText, marginBottom: 15 }]}>
             YOUR GAME BREAKDOWN
@@ -107,7 +135,7 @@ export default function LeaderboardScreen() {
           </View>
         </View>
 
-        {/* --- 3. GLOBAL RANK CARD --- */}
+        {/* --- GLOBAL RANK HEADER --- */}
         <View style={[LAYOUT.card3D, { backgroundColor: themeColors.primary, borderColor: '#FFF', marginBottom: SPACING.xl, paddingVertical: 15 }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
             <View style={{ alignItems: 'center' }}>
@@ -134,7 +162,7 @@ export default function LeaderboardScreen() {
   );
 }
 
-// Helper Component for Icons
+// Helper Component for Stats Icons
 const StatItem = ({ icon, count, label, color }: any) => (
   <View style={styles.statItem}>
     <Ionicons name={icon} size={24} color={color} />
@@ -150,7 +178,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 10
+    gap: 5
   },
   statItem: {
     alignItems: 'center',
@@ -167,7 +195,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 5,
   },
   rankBadge: {
-    width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center'
+    width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center'
   },
-  rankText: { color: 'white', fontWeight: 'bold' }
+  rankText: { color: 'white', fontWeight: 'bold', fontSize: 12 }
 });

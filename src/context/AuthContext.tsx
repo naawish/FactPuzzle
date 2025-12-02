@@ -1,3 +1,4 @@
+// src/context/AuthContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -6,6 +7,7 @@ interface UserProfile {
   id: string;
   username: string;
   email: string;
+  avatarUri?: string; // <--- NEW FIELD
   solved: any[];
 }
 
@@ -15,7 +17,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   signup: (username: string, email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  updateProfile: (name: string, email: string) => Promise<void>;
+  // Updated signature to include avatar
+  updateProfile: (name: string, email: string, avatarUri?: string) => Promise<void>; 
   changePassword: (current: string, newPass: string) => Promise<boolean>;
   saveSolvedPuzzle: (fact: any) => Promise<void>;
   submitFeedback: (text: string) => Promise<boolean>;
@@ -24,7 +27,6 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const useAuth = () => useContext(AuthContext);
 
-// STORAGE KEYS
 const USERS_DB_KEY = 'FACTPUZZLE_DATABASE_USERS';
 const SESSION_TOKEN_KEY = 'FACTPUZZLE_SESSION_TOKEN';
 const FEEDBACK_DB_KEY = 'FACTPUZZLE_DATABASE_FEEDBACK';
@@ -73,7 +75,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       await AsyncStorage.setItem(USERS_DB_KEY, JSON.stringify(allUsers));
 
-      // Update UI State immediately
       const { password, ...safeUser } = updatedFullUser;
       setUser(safeUser);
       
@@ -120,6 +121,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         username: username.trim(),
         email: email.trim(),
         password: pass,
+        avatarUri: null, // Default to null
         solved: []
       };
 
@@ -137,18 +139,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     try {
       await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
-      setUser(null); // This triggers the redirect in app/index.tsx
-    } catch (e) {
-      console.error(e);
-    }
+      setUser(null); 
+    } catch (e) { console.error(e); }
   };
 
-  const updateProfile = async (newUsername: string, newEmail: string) => {
+  // UPDATED: Now handles avatarUri
+  const updateProfile = async (newUsername: string, newEmail: string, newAvatarUri?: string) => {
     if (!user) return;
     await updateUserInDb(user.id, (dbUser) => ({
       ...dbUser,
       username: newUsername,
-      email: newEmail
+      email: newEmail,
+      avatarUri: newAvatarUri !== undefined ? newAvatarUri : dbUser.avatarUri
     }));
   };
 
@@ -196,18 +198,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       await AsyncStorage.setItem(FEEDBACK_DB_KEY, JSON.stringify(feedbacks));
-      
-      // LOGGING HERE SO YOU CAN SEE IT IN TERMINAL
       console.log("----------------------------------------");
       console.log("📩 FEEDBACK RECEIVED from " + user.username);
       console.log("📝 MESSAGE: " + text);
       console.log("----------------------------------------");
-      
       return true;
-    } catch (e) {
-      console.error(e);
-      return false;
-    }
+    } catch (e) { return false; }
   };
 
   return (

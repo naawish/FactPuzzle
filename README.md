@@ -150,7 +150,8 @@ Settings Menu	Social Share Card
 - Automated Testing: Unit tests for game logic (Tic-Tac-Toe algorithms) are included.
 Run tests via: ``` npm test```
 - Manual Testing: Each game includes fallback mechanisms (e.g., Hangman loads a local word list if the API fails/offline).
-- Web Compatibility: Layouts utilize maxWidth constraints and platform-specific files (.web.tsx) to ensure the UI does not   stretch on desktop browsers.
+- Web Compatibility: Layouts utilize maxWidth constraints and platform-specific files (.web.tsx) to ensure the UI does not   stretch on desktop browsers. Currently web version are untested as it is not a part of the scope of this assignment project. 
+- ARCHIVE_files and ARCHIVE_server is kept in the main folder, archived files from migration from Javascript to Typescript.
 
 ### Known Issues & Future Improvements
 - Web View Limitations: The "Share Image" feature is disabled on the Web version due to browser security limitations regarding react-native-view-shot.

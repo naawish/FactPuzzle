@@ -120,6 +120,7 @@ Press w in the terminal to launch the responsive web version.
 Screenshots
 
 ### Login & Onboarding
+- Some screenshots may not reflect the latest build and may have some visual changes.
 User-friendly forms with custom 3D styling and theme support.
 Login Screen	Sign Up Screen
 <img src="screenshots/login.jpg" width="300" alt="Login" />	<img src="screenshots/sign_up.jpg" width="300" alt="Sign Up" />
